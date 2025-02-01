@@ -21,6 +21,8 @@ class CANUSB_FRAME(Enum):
 
 # Enum for payload injection modes (fixed injection mode here)
 class CANUSB_PAYLOAD_MODE(Enum):
+    INJECT_PAYLOAD_MODE_RANDOM = 0
+    INJECT_PAYLOAD_MODE_INCREMENTAL = 1
     INJECT_PAYLOAD_MODE_FIXED = 2
 
 # Custom error for serial port issues
@@ -70,7 +72,7 @@ class UsbCanAdapter:
         checksum = sum(data)
         return checksum & 0xff  # Ensure the checksum fits in one byte
 
-    def frame_send(self, frame: bytearray) -> int:
+    def frame_send(self, frame: bytearray, print_flag: bool) -> int:
         """
         Sends a frame to the USB-CAN adapter device through serial communication.
         Throws SerialPortError if the serial port is not open or write fails.
@@ -80,8 +82,11 @@ class UsbCanAdapter:
         frame_len = len(frame)
         try:
             result = self.serial_device.write(bytes(frame))  # Write the frame as bytes
+            # Print the extracted data if the flag is set
+        
         except serial.SerialException as e:
             raise SerialPortError(f"write() failed: {e}")
+        
         return frame_len
 
     def frame_receive(self, frame_len_max: int = 20) -> int:
@@ -147,7 +152,7 @@ class UsbCanAdapter:
         cmd_frame.append(self.generate_checksum(cmd_frame[2:19]))  # Generate checksum from specific bytes
 
         # Send the command frame and handle any errors
-        if self.frame_send(cmd_frame) < 0:
+        if self.frame_send(cmd_frame,True) < 0:
             return -1
 
         return 0
@@ -156,7 +161,7 @@ class UsbCanAdapter:
         try:
             # Convert the frame to a hex string for easier reading (useful for debugging).
             frame_hex = frame.hex()
-            print(f"Raw Frame Hex: {frame_hex}")
+            
             
             # Step 1: Remove the first three bytes (the 'acc' part, typically the header of the frame)
             frame_hex = frame_hex[3:]  # Remove the first 3 bytes
@@ -164,18 +169,18 @@ class UsbCanAdapter:
             # Step 2: Set the DLC (Data Length Code) to the first byte after 'acc'.
             # The DLC is stored in the first byte after 'acc' (i.e., after byte 3 in the original frame)
             dlc = frame_hex[0]  # DLC is the first byte after 'acc'
-            print(f"DLC: {dlc}")
+           
 
             # Step 3: Set the ID to be the next two bytes (following the DLC byte).
             # The ID will be in bytes 1 and 2 (after the DLC).
             frame_id = frame_hex[3:5]+frame_hex[1:3]  # Frame ID is the next two bytes
-            print(f"ID: {frame_id}")
+            
 
             # Step 4: Extract the data bytes.
             # The remaining data starts from byte 3 and continues until the second-to-last byte (before 0x55).
             # Remove the last byte (0x55) from the frame.
             data = frame_hex[5:-2]  # All bytes from byte 3 until the second last byte (before 0x55)
-            print(f"Data:{data}")
+            
 
             # Return the ID and data as a dictionary in the desired format
 
@@ -183,7 +188,7 @@ class UsbCanAdapter:
             # Catch IndexError in case the frame does not have the expected length
             error_message = f"Error in CAN data frame\nException: {e}\nTraceback:\n{traceback.format_exc()}"
             print(error_message)
-            return {}
+        return data, dlc, frame_id
 
 
     def dump_data_frames(self, print_flag: bool) -> int:
@@ -191,24 +196,24 @@ class UsbCanAdapter:
         Receives and processes data frames from the CAN adapter.
         Prints the extracted frame data if the print_flag is True.
         """
-        while self.program_running:
-            frame_len = self.frame_receive(20)  # Receive up to 20 bytes in a frame
+        
+        frame_len = self.frame_receive(20)  # Receive up to 20 bytes in a frame
 
-            if not self.program_running:
-                break
+        if not self.program_running:
+            return 0
 
-            if frame_len == -1:
-                print("Frame receive error!")
-            else:
-                # Extract data from the received frame
-                self.data_dict = self.extract_data(self.frame)
+        if frame_len == -1:
+            print("Frame receive error!")
+        else:
+            # Extract data from the received frame
+            self.data_dict = self.extract_data(self.frame)
 
-            # Print the extracted data if the flag is set
-            if print_flag:
-                try:
-                    print(f"{self.data_dict}")
-                except KeyError:
-                    pass
+        # Print the extracted data if the flag is set
+        if print_flag:
+            try:
+                print(f"{self.data_dict}")
+            except KeyError:
+                pass
         return 0
 
     def adapter_init(self) -> serial.Serial:
@@ -242,47 +247,31 @@ class UsbCanAdapter:
         """
         self.program_running = False
 
-   
+
 
     def main(self) -> None:
         """
         Main function that runs the program.
         Initializes the adapter, sets the CAN settings, and enters the data frame receiving loop.
-        Sends the number 99 to the CAN bus every 5 seconds.
+        Sends the number 99 to the CAN bus every 5 seconds and injects a frame.
         """
+        print("I am Here")
         signal.signal(signal.SIGTERM, self.sigterm)
         signal.signal(signal.SIGINT, self.sigterm)
-
         self.adapter_init()  # Initialize the adapter
         if self.serial_device is None:
             sys.exit(1)
-
+        
         self.command_settings()  # Configure the CAN settings
-
+        
         # Start dumping data frames (default behavior)
-        self.dump_data_frames(print_flag=True)
+        while True:
+            self.dump_data_frames(print_flag=True)
+            time.sleep(1)  # Sleep for 1 second
 
-        # Now, send the number 99 to the CAN bus every 5 seconds
-        while self.program_running:
-            # Create a frame to send (example, 99 in data)
-            frame = bytearray()
-            
-            # Assuming the first 4 bytes should be the frame ID (you can modify it as necessary)
-            frame.extend([0x00, 0x09, 0x87])  # Example frame ID (0x987)
-            
-            # Add the data byte, in this case, the number 99 (0x63)
-            frame.append(0x63)  # 0x63 is 99 in decimal
-            
-            # Assuming 0x55 is used as an end byte (this could be adjusted based on your protocol)
-            frame.append(0x55)
+        # Now, send the number 99 to the CAN bus and inject a data frame every 5 seconds
 
-            # Send the frame with the number 99
-            self.frame_send(frame)
-            
-            # Wait for 5 seconds before sending the next frame
-            time.sleep(5)
 
-        sys.exit(0)  # Exit the program when done
 
 
 # Main entry point for the scriptca
