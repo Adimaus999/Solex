@@ -209,7 +209,7 @@ class MyApp(QMainWindow):
 
         # Set up a QTimer to send latitude and longitude to OpenCPN periodically
         self.timer = QTimer(self)
-        self.timer.timeout.connect(lambda: self.send_to_opencpn(self.Latitude, self.Longitude, self.Speed))
+        self.timer.timeout.connect(lambda: self.send_to_opencpn(self.Latitude, self.Longitude))
         self.timer.start(1000)  # Send data every 1000 milliseconds (1 second)
         print("QTimer started to send latitude and longitude every 1 second")
 
@@ -242,8 +242,8 @@ class MyApp(QMainWindow):
         self.hide()
         print("Opened second window")
 
-    def send_to_opencpn(self, latitude, longitude, speed):
-        print(f"Sending latitude: {latitude}, longitude: {longitude}, speed: {speed} to OpenCPN")
+    def send_to_opencpn(self, latitude, longitude):
+        print(f"Sending latitude: {latitude}, longitude: {longitude} to OpenCPN")
         # Format latitude and longitude into NMEA sentences
         nmea_lat = self.format_nmea_latitude(latitude)
         nmea_lon = self.format_nmea_longitude(longitude)
@@ -261,17 +261,6 @@ class MyApp(QMainWindow):
             print(f"Sent NMEA sentence to OpenCPN: {nmea_sentence}")
         except Exception as e:
             print(f"Failed to send NMEA sentence: {e}")
-
-        # Format speed into NMEA sentence
-        nmea_speed = f"GPVTG,,T,,M,{speed:.2f},N,,K"
-        checksum = self.calculate_checksum(nmea_speed)
-        nmea_speed_sentence = f"${nmea_speed}*{checksum}\r\n"
-
-        try:
-            sock.sendto(nmea_speed_sentence.encode(), (udp_ip, udp_port))
-            print(f"Sent NMEA speed sentence to OpenCPN: {nmea_speed_sentence}")
-        except Exception as e:
-            print(f"Failed to send NMEA speed sentence: {e}")
 
     def format_nmea_latitude(self, latitude):
         degrees = int(latitude)
