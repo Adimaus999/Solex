@@ -30,9 +30,6 @@ class SecondWindow(QMainWindow):
         self.set_text_edit('textEdit_15', range_)
         self.set_text_edit('textEdit_16', remaining)
 
-        # Update button colors based on battery status
-        self.update_button_colors(battery_status)
-
         # Find the QPushButton widget for returning to the main window
         self.pushButton_5 = self.findChild(QPushButton, 'pushButton_5')
         if self.pushButton_5 is None:
@@ -48,35 +45,6 @@ class SecondWindow(QMainWindow):
         else:
             print(f"{object_name} found!")
             text_edit.setPlainText(f"{value}")
-
-    def update_button_colors(self, battery_status):
-        print(f"Updating button colors for battery status: {battery_status}")
-        pushButton_1 = self.findChild(QPushButton, 'pushButton')
-        pushButton_2 = self.findChild(QPushButton, 'pushButton_2')
-        pushButton_3 = self.findChild(QPushButton, 'pushButton_3')
-
-        if pushButton_1 is None or pushButton_2 is None or pushButton_3 is None:
-            print("One or more push buttons not found!")
-            return
-
-        if battery_status == "Charging":
-            pushButton_1.setStyleSheet("background-color: rgb(0, 255, 16)")
-            pushButton_2.setStyleSheet("background-color: rgb(128, 128, 128)")
-            pushButton_3.setStyleSheet("background-color: rgb(128, 128, 128)")
-        elif battery_status == "Equilibrium":
-            pushButton_1.setStyleSheet("background-color: rgb(128, 128, 128)")
-            pushButton_2.setStyleSheet("background-color: rgb(0, 255, 16)")
-            pushButton_3.setStyleSheet("background-color: rgb(128, 128, 128)")
-        elif battery_status == "Discharging":
-            pushButton_1.setStyleSheet("background-color: rgb(128, 128, 128)")
-            pushButton_2.setStyleSheet("background-color: rgb(128, 128, 128)")
-            pushButton_3.setStyleSheet("background-color: rgb(0, 255, 16)")
-        else:
-            pushButton_1.setStyleSheet("background-color: rgb(128, 128, 128)")
-            pushButton_2.setStyleSheet("background-color: rgb(128, 128, 128)")
-            pushButton_3.setStyleSheet("background-color: rgb(128, 128, 128)")
-
-        print(f"Battery status: {battery_status}, button colors updated")
 
     def return_to_main_window(self):
         self.hide()
@@ -97,7 +65,7 @@ class MyApp(QMainWindow):
         self.dial.setMaximum(20)  # Set the maximum value of the dial to 20
 
         # Initialize the Speed variable
-        self.Speed = 10
+        self.Speed = 14
 
         # Set the initial value of the dial to the Speed value
         self.dial.setValue(self.Speed)
@@ -126,13 +94,13 @@ class MyApp(QMainWindow):
         self.progressBar.setMaximum(100)  # Set the maximum value of the progress bar to 100
 
         # Initialize the BatteryCharge variable
-        self.BatteryCharge = 69
+        self.BatteryCharge = 75
 
         # Set the initial value of the progress bar to the BatteryCharge value
         self.progressBar.setValue(self.BatteryCharge)
 
         # Initialize the Range variable
-        self.Range = 69
+        self.Range = 20
 
         # Find the QLabel widget for Range
         self.range_label = self.findChild(QLabel, 'label_2')  # Replace 'label_2' with the object name of your QLabel in the .ui file
@@ -145,7 +113,7 @@ class MyApp(QMainWindow):
         self.range_label.setText(f"{self.Range} km")
 
         # Initialize the Remaining variable
-        self.Remaining = 69
+        self.Remaining = 25
 
         # Find the QLabel widget for Remaining
         self.remaining_label = self.findChild(QLabel, 'label_19')  # Replace 'label_19' with the object name of your QLabel in the .ui file
@@ -161,7 +129,7 @@ class MyApp(QMainWindow):
         self.BatteryError = "No Error"
 
         # Initialize the BatteryStatus variable
-        self.BatteryStatus = "Charging"  # Example status, you can change this as needed
+        self.BatteryStatus = "Discharging"  # Example status, you can change this as needed
 
         # Initialize the RPM variable
         self.RPM = 3000  # Example value, you can change this as needed
@@ -188,10 +156,10 @@ class MyApp(QMainWindow):
         self.SolarPower = 185  # Example value, you can change this as needed
 
         # Initialize the Latitude variable
-        self.Latitude = 51  # Example value, you can change this as needed
+        self.Latitude = 51.5074  # Example value, you can change this as needed
 
         # Initialize the Longitude variable
-        self.Longitude = -1  # Example value, you can change this as needed
+        self.Longitude = -0.1278  # Example value, you can change this as needed
 
         # Initialize the Acceleration variable
         self.Acceleration = 3.5  # Example value, you can change this as needed
@@ -209,7 +177,7 @@ class MyApp(QMainWindow):
 
         # Set up a QTimer to send latitude and longitude to OpenCPN periodically
         self.timer = QTimer(self)
-        self.timer.timeout.connect(lambda: self.send_to_opencpn(self.Latitude, self.Longitude, self.Speed))
+        self.timer.timeout.connect(lambda: self.send_to_opencpn(self.Latitude, self.Longitude))
         self.timer.start(1000)  # Send data every 1000 milliseconds (1 second)
         print("QTimer started to send latitude and longitude every 1 second")
 
@@ -242,8 +210,8 @@ class MyApp(QMainWindow):
         self.hide()
         print("Opened second window")
 
-    def send_to_opencpn(self, latitude, longitude, speed):
-        print(f"Sending latitude: {latitude}, longitude: {longitude}, speed: {speed} to OpenCPN")
+    def send_to_opencpn(self, latitude, longitude):
+        print(f"Sending latitude: {latitude}, longitude: {longitude} to OpenCPN")
         # Format latitude and longitude into NMEA sentences
         nmea_lat = self.format_nmea_latitude(latitude)
         nmea_lon = self.format_nmea_longitude(longitude)
@@ -262,17 +230,6 @@ class MyApp(QMainWindow):
         except Exception as e:
             print(f"Failed to send NMEA sentence: {e}")
 
-        # Format speed into NMEA sentence
-        nmea_speed = f"GPVTG,,T,,M,{speed:.2f},N,,K"
-        checksum = self.calculate_checksum(nmea_speed)
-        nmea_speed_sentence = f"${nmea_speed}*{checksum}\r\n"
-
-        try:
-            sock.sendto(nmea_speed_sentence.encode(), (udp_ip, udp_port))
-            print(f"Sent NMEA speed sentence to OpenCPN: {nmea_speed_sentence}")
-        except Exception as e:
-            print(f"Failed to send NMEA speed sentence: {e}")
-
     def format_nmea_latitude(self, latitude):
         degrees = int(latitude)
         minutes = (latitude - degrees) * 60
@@ -285,9 +242,9 @@ class MyApp(QMainWindow):
         direction = 'E' if longitude >= 0 else 'W'
         return f"{abs(degrees):03d}{abs(minutes):07.4f},{direction}"
 
-    def calculate_checksum(self, sentence):
+    def calculate_checksum(self, nmea_sentence):
         checksum = 0
-        for char in sentence:
+        for char in nmea_sentence:
             checksum ^= ord(char)
         return f"{checksum:02X}"
 
