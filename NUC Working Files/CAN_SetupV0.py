@@ -181,7 +181,16 @@ class UsbCanAdapter:
             # The remaining data starts from byte 3 and continues until the second-to-last byte (before 0x55).
             # Remove the last byte (0x55) from the frame.
             data = frame_hex[5:-2]  # All bytes from byte 3 until the second last byte (before 0x55)
-            
+            # Step 4: Split the data into every 2 bytes
+            # Step 4: Split the string data into every 2 characters
+            split_data = [data[i:i + 2] for i in range(0, len(data), 2)]  # Split data into chunks of 2 characters
+            print(f"Split Data (Every 2 characters):")
+            for pair in split_data:
+                print(pair)
+
+            # Calculate the number of data bytes (to check)
+            num_data_bytes = len(data)/2 # Length of the data string
+            print(f"Number of data bytes: {num_data_bytes}")
 
             # Return the ID and data as a dictionary in the desired format
 
@@ -190,6 +199,7 @@ class UsbCanAdapter:
             error_message = f"Error in CAN data frame\nException: {e}\nTraceback:\n{traceback.format_exc()}"
             print(error_message)
         return data, dlc, frame_id
+    #def decode_data(self, data, dl)
 
 
     def dump_data_frames(self, print_flag: bool) -> int:
