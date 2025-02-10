@@ -6,6 +6,7 @@ import sys
 import traceback
 from enum import Enum, auto
 from typing import Dict, Union
+from datetime import datetime
 
 # Enum for CAN Bus speed (only 250000 is defined here)
 class CANUSB_SPEED(Enum):
@@ -267,6 +268,8 @@ class UsbCanAdapter:
         # Start dumping data frames (default behavior)
         while True:
             self.dump_data_frames(print_flag=True)
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Get the current time
+            print(f"Current Time: {current_time}")  # Print the current time
             time.sleep(1)  # Sleep for 1 second
 
         # Now, send the number 99 to the CAN bus and inject a data frame every 5 seconds
