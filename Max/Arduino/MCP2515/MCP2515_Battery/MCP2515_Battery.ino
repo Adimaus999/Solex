@@ -5,10 +5,10 @@
 MCP2515 mcp2515(10); // Chip Select pin 10
 
 // CAN ID definition
-#define CAN_ID 0x001
+#define CAN_ID 0x5FF
 
 // Define the CAN frames data as arrays
-const uint8_t frame_soc_data[5] = {0x0D, 0x81, 0x01, 0x00, 0x00};
+const uint8_t frame_soc_data[8] = {0x20, 0x81,0x21,0x01,0x00,0x00,0x00,0x64};
 const uint8_t frame_voltage_data[5] = {0x09, 0x81, 0x01, 0x00, 0x00};
 const uint8_t frame_current_data[5] = {0x2A, 0x81, 0x02, 0x00, 0x00};
 
@@ -52,10 +52,10 @@ void loop() {
 }
 
 
-void initCANFrame(struct can_frame &frame, const uint8_t data[5]) {
+void initCANFrame(struct can_frame &frame, const uint8_t data[8]) {
   frame.can_id = CAN_ID;      // Use defined CAN ID
-  frame.can_dlc = 5;          // Data Length Code (5 bytes)
-  for (int i = 0; i < 5; i++) {
+  frame.can_dlc = 8;          // Data Length Code (5 bytes)
+  for (int i = 0; i < 8; i++) {
     frame.data[i] = data[i];  // Initialize frame data
   }
 }
