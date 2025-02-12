@@ -30,12 +30,16 @@ void loop() {
 void sendCANMessage() {
   struct can_frame frame; // Create a CAN frame structure
 
-  frame.can_id = 0x000;  // Standard CAN ID (0x00)
-  frame.can_dlc = 4;     // Data Length Code (4 bytes)
-  frame.data[0] = 0xFF;
-  frame.data[1] = 0xFF;
-  frame.data[2] = 0xFF;
-  frame.data[3] = 0xFF;
+  frame.can_id = 0x5FF;  // Standard CAN ID (0x00)
+  frame.can_dlc = 8;     // Data Length Code (4 bytes)
+  frame.data[0] = 0x20;
+  frame.data[1] = 0x81;
+  frame.data[2] = 0x21;
+  frame.data[3] = 0x01;
+  frame.data[4] = 0x00;
+  frame.data[5] = 0x00;
+  frame.data[6] = 0x02;
+  frame.data[7] = 0x64;
 
   Serial.println("Sending CAN message...");
 
