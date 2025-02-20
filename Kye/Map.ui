@@ -450,7 +450,7 @@
      <x>-20</x>
      <y>0</y>
      <width>2061</width>
-     <height>171</height>
+     <height>101</height>
     </rect>
    </property>
    <property name="palette">
@@ -878,10 +878,10 @@
   <widget class="QLabel" name="label_3">
    <property name="geometry">
     <rect>
-     <x>810</x>
+     <x>460</x>
      <y>30</y>
-     <width>171</width>
-     <height>101</height>
+     <width>91</width>
+     <height>51</height>
     </rect>
    </property>
    <property name="palette">
@@ -924,7 +924,7 @@
    <property name="font">
     <font>
      <family>Segoe UI</family>
-     <pointsize>48</pointsize>
+     <pointsize>24</pointsize>
      <weight>75</weight>
      <bold>true</bold>
     </font>
@@ -936,20 +936,20 @@
   <widget class="QWebEngineView" name="webView" native="true">
    <property name="geometry">
     <rect>
-     <x>40</x>
-     <y>200</y>
-     <width>1681</width>
-     <height>991</height>
+     <x>30</x>
+     <y>110</y>
+     <width>941</width>
+     <height>401</height>
     </rect>
    </property>
   </widget>
   <widget class="QLabel" name="label_4">
    <property name="geometry">
     <rect>
-     <x>60</x>
+     <x>30</x>
      <y>20</y>
-     <width>291</width>
-     <height>131</height>
+     <width>151</width>
+     <height>71</height>
     </rect>
    </property>
    <property name="palette">
@@ -1377,10 +1377,10 @@
   <widget class="QPushButton" name="pushButton">
    <property name="geometry">
     <rect>
-     <x>70</x>
+     <x>40</x>
      <y>30</y>
-     <width>271</width>
-     <height>111</height>
+     <width>131</width>
+     <height>51</height>
     </rect>
    </property>
    <property name="palette">
@@ -1800,7 +1800,7 @@
    </property>
    <property name="font">
     <font>
-     <pointsize>26</pointsize>
+     <pointsize>14</pointsize>
      <weight>75</weight>
      <bold>true</bold>
     </font>
@@ -1812,10 +1812,10 @@
   <widget class="QLabel" name="label_5">
    <property name="geometry">
     <rect>
-     <x>1420</x>
-     <y>20</y>
-     <width>291</width>
-     <height>131</height>
+     <x>810</x>
+     <y>10</y>
+     <width>161</width>
+     <height>81</height>
     </rect>
    </property>
    <property name="palette">
@@ -2243,10 +2243,10 @@
   <widget class="QPushButton" name="pushButton_2">
    <property name="geometry">
     <rect>
-     <x>1430</x>
-     <y>30</y>
-     <width>271</width>
-     <height>111</height>
+     <x>820</x>
+     <y>20</y>
+     <width>141</width>
+     <height>61</height>
     </rect>
    </property>
    <property name="palette">
@@ -2666,7 +2666,7 @@
    </property>
    <property name="font">
     <font>
-     <pointsize>26</pointsize>
+     <pointsize>14</pointsize>
      <weight>75</weight>
      <bold>true</bold>
     </font>
