@@ -1,16 +1,41 @@
 from PyQt6 import uic
 from PyQt6.QtWidgets import QApplication, QMainWindow, QDial, QLabel, QProgressBar, QPushButton, QTextEdit
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import QTimer, QUrl
+from PyQt6.QtWebEngineWidgets import QWebEngineView
 import sys
 import socket
 import signal
 from datetime import datetime
+import threading
+import os
+
+class MapWindow(QMainWindow):
+    def __init__(self, latitude, longitude):
+        super().__init__()
+        uic.loadUi("Map.ui", self)  # Load the map UI file
+        self.latitude = latitude
+        self.longitude = longitude
+        self.webView = self.findChild(QWebEngineView, 'webView')
+        self.webView.setUrl(QUrl("http://localhost:8000/map.html"))
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_location)
+        self.timer.start(2000)  # Update every 2 seconds
+        self.update_location()
+
+    def update_location(self):
+        """Update the map with the predefined latitude and longitude."""
+        script = f"updateMap({self.latitude}, {self.longitude});"
+        self.webView.page().runJavaScript(script)
 
 class SecondWindow(QMainWindow):
     def __init__(self, main_window, battery_charge, battery_error, battery_status, rpm, current, voltage, temperature, throttle_position, solar_current, solar_voltage, solar_power, latitude, longitude, speed, acceleration, range_, remaining):
         super().__init__()
         self.main_window = main_window
-        uic.loadUi("Diagnostics Panel.ui", self)  # Load the second UI file
+        try:
+            uic.loadUi("Diagnostics Panel.ui", self)  # Load the second UI file
+            print("Second window initialized")  # Add a print statement for debugging
+        except Exception as e:
+            print(f"Failed to load Diagnostics Panel.ui: {e}")  # Add error handling
 
         # Find and set the QTextEdit widgets
         self.set_text_edit('textEdit', battery_charge)
@@ -29,7 +54,7 @@ class SecondWindow(QMainWindow):
         self.set_text_edit('textEdit_14', acceleration)
         self.set_text_edit('textEdit_15', range_)
         self.set_text_edit('textEdit_16', remaining)
-
+        
         # Update button colors based on battery status
         self.update_button_colors(battery_status)
 
@@ -40,6 +65,18 @@ class SecondWindow(QMainWindow):
         else:
             print("QPushButton_5 found!")
             self.pushButton_5.clicked.connect(self.return_to_main_window)
+
+         #Find the QPushButton widget for opening the map window
+        print("Looking for pushButton_4...")  # Add a print statement for debugging
+        self.pushButton_4 = self.findChild(QPushButton, 'pushButton_4')
+        print("hello i am here")
+        print(type(self.pushButton_4))
+        if self.pushButton_4 is None:
+            print("QPushButton_4 not found!")
+        else:
+            print("QPushButton_4 found!")
+            self.pushButton_4.clicked.connect(self.open_map_window)
+            print("Connected pushButton_4 to open_map_window")  # Add a print statement for debugging
 
     def set_text_edit(self, object_name, value):
         text_edit = self.findChild(QTextEdit, object_name)
@@ -81,6 +118,18 @@ class SecondWindow(QMainWindow):
     def return_to_main_window(self):
         self.hide()
         self.main_window.show()
+
+    def open_map_window(self):
+        print("Attempting to open map window")  # Add a print statement for debugging
+        try:
+            latitude = self.findChild(QTextEdit, 'textEdit_11').toPlainText()
+            longitude = self.findChild(QTextEdit, 'textEdit_12').toPlainText()
+            self.map_window = MapWindow(latitude, longitude)
+            self.map_window.show()
+            self.hide()  # Hide the second window
+            print("Opened map window")  # Add a print statement for debugging
+        except Exception as e:
+            print(f"Failed to open map window: {e}")  # Add error handling
 
 class MyApp(QMainWindow):
     def __init__(self):
@@ -161,7 +210,7 @@ class MyApp(QMainWindow):
         self.BatteryError = "No Error"
 
         # Initialize the BatteryStatus variable
-        self.BatteryStatus = "Charging"  # Example status, you can change this as needed
+        self.BatteryStatus = "Discharging"  # Example status, you can change this as needed
 
         # Initialize the RPM variable
         self.RPM = 3000  # Example value, you can change this as needed
@@ -209,7 +258,7 @@ class MyApp(QMainWindow):
 
         # Set up a QTimer to send latitude and longitude to OpenCPN periodically
         self.timer = QTimer(self)
-        self.timer.timeout.connect(lambda: self.send_to_opencpn(self.Latitude, self.Longitude))
+        self.timer.timeout.connect(lambda: self.send_to_opencpn(self.Latitude, self.Longitude, self.Speed))
         self.timer.start(1000)  # Send data every 1000 milliseconds (1 second)
         print("QTimer started to send latitude and longitude every 1 second")
 
@@ -242,8 +291,8 @@ class MyApp(QMainWindow):
         self.hide()
         print("Opened second window")
 
-    def send_to_opencpn(self, latitude, longitude):
-        print(f"Sending latitude: {latitude}, longitude: {longitude} to OpenCPN")
+    def send_to_opencpn(self, latitude, longitude, speed):
+        print(f"Sending latitude: {latitude}, longitude: {longitude}, speed: {speed} to OpenCPN")
         # Format latitude and longitude into NMEA sentences
         nmea_lat = self.format_nmea_latitude(latitude)
         nmea_lon = self.format_nmea_longitude(longitude)
@@ -261,6 +310,17 @@ class MyApp(QMainWindow):
             print(f"Sent NMEA sentence to OpenCPN: {nmea_sentence}")
         except Exception as e:
             print(f"Failed to send NMEA sentence: {e}")
+
+        # Format speed into NMEA sentence
+        nmea_speed = f"GPVTG,,T,,M,{speed:.2f},N,,K"
+        checksum = self.calculate_checksum(nmea_speed)
+        nmea_speed_sentence = f"${nmea_speed}*{checksum}\r\n"
+
+        try:
+            sock.sendto(nmea_speed_sentence.encode(), (udp_ip, udp_port))
+            print(f"Sent NMEA speed sentence to OpenCPN: {nmea_speed_sentence}")
+        except Exception as e:
+            print(f"Failed to send NMEA speed sentence: {e}")
 
     def format_nmea_latitude(self, latitude):
         degrees = int(latitude)
@@ -285,8 +345,17 @@ def signal_handler(sig, frame):
     sys.exit(0)
 
 if __name__ == "__main__":
-    signal.signal(signal.SIGINT, signal_handler)
     app = QApplication(sys.argv)
-    window = MyApp()
-    window.show()
+
+    # Start the local HTTP server in a separate thread to serve the HTML file
+    def start_http_server():
+        os.system('python -m http.server 8000')
+
+    # Start the server in a separate thread
+    server_thread = threading.Thread(target=start_http_server)
+    server_thread.daemon = True  # Makes sure the server stops when the program ends
+    server_thread.start()
+
+    main_window = MyApp()
+    main_window.show()
     sys.exit(app.exec())

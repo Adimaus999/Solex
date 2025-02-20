@@ -293,8 +293,8 @@ class MyApp(QMainWindow):
         # Set up a QTimer to send latitude and longitude to OpenCPN periodically
         self.timer = QTimer(self)
         self.timer.timeout.connect(lambda: self.send_to_opencpn(self.Latitude, self.Longitude, self.Speed))
-        self.timer.start(5000)  # Send data every 5000 milliseconds (5 seconds)
-        print("QTimer started to send latitude and longitude every 5 seconda")
+        self.timer.start(1000)  # Send data every 1000 milliseconds (1 second)
+        print("QTimer started to send latitude and longitude every 1 second")
 
         # Set up a QTimer to send BatteryCharge to Adafruit every 5 seconds
         self.adafruit_timer = QTimer(self)
@@ -342,7 +342,7 @@ class MyApp(QMainWindow):
         nmea_sentence = f"${nmea_sentence}*{checksum}\r\n"
 
         # Send NMEA sentence to OpenCPN via UDP
-        udp_ip = "100.69.35.41"  # OpenCPN IP address
+        udp_ip = "127.0.0.1"  # OpenCPN IP address
         udp_port = 10110  # OpenCPN UDP port
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
