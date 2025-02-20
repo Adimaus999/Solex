@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>2086</width>
-    <height>1371</height>
+    <width>1929</width>
+    <height>1253</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -1344,10 +1344,10 @@ QProgressBar::chunk {
    <widget class="QPushButton" name="pushButton">
     <property name="geometry">
      <rect>
-      <x>50</x>
-      <y>40</y>
-      <width>311</width>
-      <height>101</height>
+      <x>40</x>
+      <y>30</y>
+      <width>161</width>
+      <height>51</height>
      </rect>
     </property>
     <property name="palette">
@@ -1767,7 +1767,7 @@ QProgressBar::chunk {
     </property>
     <property name="font">
      <font>
-      <pointsize>20</pointsize>
+      <pointsize>10</pointsize>
      </font>
     </property>
     <property name="acceptDrops">
@@ -2216,8 +2216,8 @@ QProgressBar::chunk {
      <rect>
       <x>30</x>
       <y>20</y>
-      <width>351</width>
-      <height>141</height>
+      <width>181</width>
+      <height>71</height>
      </rect>
     </property>
     <property name="palette">
@@ -2591,7 +2591,7 @@ QProgressBar::chunk {
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>2086</width>
+     <width>1929</width>
      <height>26</height>
     </rect>
    </property>
