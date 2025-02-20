@@ -293,8 +293,8 @@ class MyApp(QMainWindow):
         # Set up a QTimer to send latitude and longitude to OpenCPN periodically
         self.timer = QTimer(self)
         self.timer.timeout.connect(lambda: self.send_to_opencpn(self.Latitude, self.Longitude, self.Speed))
-        self.timer.start(1000)  # Send data every 1000 milliseconds (1 second)
-        print("QTimer started to send latitude and longitude every 1 second")
+        self.timer.start(5000)  # Send data every 5000 milliseconds (5 seconds)
+        print("QTimer started to send latitude and longitude every 5 seconda")
 
         # Set up a QTimer to send BatteryCharge to Adafruit every 5 seconds
         self.adafruit_timer = QTimer(self)
