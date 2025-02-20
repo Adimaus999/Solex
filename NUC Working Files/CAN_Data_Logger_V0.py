@@ -7,6 +7,9 @@ import traceback
 from enum import Enum, auto
 from typing import Dict, Union
 from datetime import datetime
+import sqlite3
+import os
+
 
 # Enum for CAN Bus speed (only 250000 is defined here)
 class CANUSB_SPEED(Enum):
@@ -181,87 +184,14 @@ class UsbCanAdapter:
             # The remaining data starts from byte 3 and continues until the second-to-last byte (before 0x55).
             # Remove the last byte (0x55) from the frame.
             data = frame_hex[5:-2]  # All bytes from byte 3 until the second last byte (before 0x55)
-            # Step 4: Split the data into every 2 bytes
-            # Step 4: Split the string data into every 2 characters
-            
 
-            # Return the ID and data as a dictionary in the desired format
 
         except IndexError as e:
             # Catch IndexError in case the frame does not have the expected length
             error_message = f"Error in CAN data frame\nException: {e}\nTraceback:\n{traceback.format_exc()}"
             print(error_message)
-
-
-
-        decoded_data = {}
-
-        if frame_id == "05ff":  # Battery data frame
-            if dlc == '8':
-                # Alarm1 decoding (byte 1)
-                alarm1 = int(data[8:10], 16)
-                decoded_data['alarm1'] = {}
-
-                # Using if statements to determine the alarm status in decimal
-                if alarm1 & 128:  # 0x80
-                    decoded_data['alarm1']['low_voltage_alarm'] = alarm1 & 128
-
-                if alarm1 & 32:  # 0x20
-                    decoded_data['alarm1']['over_temperature_protection'] = alarm1 & 32
-
-                if alarm1 & 16:  # 0x10
-                    decoded_data['alarm1']['overload_protection'] = alarm1 & 16
-
-                if alarm1 & 2:  # 0x02
-                    decoded_data['alarm1']['cell_low_voltage_alarm'] = alarm1 & 2
-
-                # Alarm2 decoding (byte 2)
-                alarm2 = int(data[10:12], 16)
-                decoded_data['alarm2'] = {}
-
-                # Using if statements to determine the alarm status in decimal
-                if alarm2 & 64:  # 0x40
-                    decoded_data['alarm2']['over_current_alarm'] = alarm2 & 64
-
-                if alarm2 & 32:  # 0x20
-                    decoded_data['alarm2']['under_voltage_protection'] = alarm2 & 32
-
-                if alarm2 & 16:  # 0x10
-                    decoded_data['alarm2']['cell_under_voltage_protection'] = alarm2 & 16
-
-                if alarm2 & 2:  # 0x02
-                    decoded_data['alarm2']['over_temperature_alarm'] = alarm2 & 2
-
-                # Status decoding (byte 3)
-                status = int(data[12:14], 16)
-                decoded_data['status'] = {}
-
-                # Using if statements to determine the status bits in decimal
-                if status & 64:  # 0x40
-                    decoded_data['status']['fully_charged_status'] = status & 64
-
-                if status & 32:  # 0x20
-                    decoded_data['status']['heating_element_on'] = status & 32
-
-                if status & 4:  # 0x04
-                    decoded_data['status']['discharge_current_detected'] = status & 4
-
-                if status & 2:  # 0x02
-                    decoded_data['status']['charging_current_detected'] = status & 2
-
-                # State of Charge (SOC) in decimal
-                decoded_data['soc'] = {}
-                decoded_data['soc']['soc'] = int(data[14:16], 16)
-        
-
-
-        return decoded_data, dlc, frame_id, data
-
-
-      
-
-
-
+        return data, dlc, frame_id
+    
 
 
     def dump_data_frames(self, print_flag: bool) -> int:
@@ -279,15 +209,10 @@ class UsbCanAdapter:
             print("Frame receive error!")
         else:
             # Extract data from the received frame
-            self.data_dict = self.extract_data(self.frame)
+            data, dlc, frame_id = self.extract_data(self.frame)
+        return data, dlc, frame_id
 
-        # Print the extracted data if the flag is set
-        if print_flag:
-            try:
-                print(f"{self.data_dict}")
-            except KeyError:
-                pass
-        return 0
+
 
     def adapter_init(self) -> serial.Serial:
         """
@@ -320,6 +245,98 @@ class UsbCanAdapter:
         """
         self.program_running = False
 
+    import sqlite3
+
+
+    
+    def process_and_store_data(self, hex_string):
+        db_name = 'device_data2.db'  # Hardcoded database name
+
+        # Split the hex string into 4 parts (reverse order)
+        part4 = int(hex_string[-2:], 16)  # Last byte (last two hex characters)
+        part3 = int(hex_string[-4:-2], 16)  # Second last byte
+        part2 = int(hex_string[-6:-4], 16)  # Third last byte
+        part1 = int(hex_string[-8:-6], 16)  # First byte (beginning two hex characters)
+        
+        # Initialize variables for alarms and status
+        alarm1 = ""
+        alarm2 = ""
+        status = ""
+
+        # Alarm 1 conditions (analyzing part1)
+        if part1 & 0x80:  # Pack low-voltage alarm
+            alarm1 += "Pack low-voltage alarm, "
+        if part1 & 0x20:  # Over-temperature protection during discharge
+            alarm1 += "Over-temperature protection during discharge, "
+        if part1 & 0x10:  # Overload protection
+            alarm1 += "Overload protection, "
+        if part1 & 0x02:  # Cell low voltage alarm
+            alarm1 += "Cell low voltage alarm, "
+
+        # Alarm 2 conditions (analyzing part2)
+        if part2 & 0x40:  # Over-current alarm during discharge
+            alarm2 += "Over-current alarm during discharge, "
+        if part2 & 0x20:  # Pack under-voltage protection
+            alarm2 += "Pack under-voltage protection, "
+        if part2 & 0x10:  # Cell under-voltage protection
+            alarm2 += "Cell under-voltage protection, "
+        if part2 & 0x02:  # Over-temperature alarm
+            alarm2 += "Over-temperature alarm, "
+
+        # Status conditions (analyzing part3)
+        if part3 & 0x40:  # Fully charged status (SOC = 100%)
+            status += "Fully charged status (SOC = 100%), "
+        if part3 & 0x20:  # Heating-element ON
+            status += "Heating-element ON, "
+        if part3 & 0x04:  # Discharge current detected
+            status += "Discharge current detected, "
+        if part3 & 0x02:  # Charging current detected
+            status += "Charging current detected, "
+
+        # Remove trailing commas and spaces
+        alarm1 = alarm1.strip(', ') if alarm1 else "No alarms"
+        alarm2 = alarm2.strip(', ') if alarm2 else "No alarms"
+        status = status.strip(', ') if status else "No status"
+
+        # SOC (raw value from part4)
+        soc = part4  # Directly take the last byte as the raw SOC
+
+        # Check if the database exists, if not, create it and the table
+        if not os.path.exists(db_name):
+            conn = sqlite3.connect(db_name)
+            cursor = conn.cursor()
+            cursor.execute('''CREATE TABLE IF NOT EXISTS device_data (
+                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                timestamp TEXT,
+                                alarm1 TEXT,
+                                alarm2 TEXT,
+                                status TEXT,
+                                soc INTEGER
+                            )''')
+            conn.commit()
+            conn.close()
+            print(f"Database '{db_name}' and table 'device_data' created.")
+        else:
+            print(f"Database '{db_name}' already exists.")
+
+        # Connect to the SQLite database
+        conn = sqlite3.connect(db_name)
+        cursor = conn.cursor()
+
+        # Get current timestamp
+        current_timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        # Insert the data into the table
+        cursor.execute('''INSERT INTO device_data (timestamp, alarm1, alarm2, status, soc)
+                        VALUES (?, ?, ?, ?, ?)''', 
+                        (current_timestamp, alarm1, alarm2, status, soc))
+
+        # Commit the transaction and close the connection
+        conn.commit()
+        conn.close()
+
+        # Confirmation message
+        print("Data has been written to the database with the current timestamp.")
 
 
     def main(self) -> None:
@@ -338,12 +355,14 @@ class UsbCanAdapter:
         
         # Start dumping data frames (default behavior)
         while True:
-            self.dump_data_frames(print_flag=True)
+            data, dlc, frame_id = self.dump_data_frames(print_flag=True)
+            self.process_and_store_data(data)
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Get the current time
             print(f"Current Time: {current_time}")  # Print the current time
             time.sleep(1)  # Sleep for 1 second
 
         # Now, send the number 99 to the CAN bus and inject a data frame every 5 seconds
+
 
 
 

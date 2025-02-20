@@ -7,6 +7,8 @@ import traceback
 from enum import Enum, auto
 from typing import Dict, Union
 from datetime import datetime
+import sqlite3
+import os
 
 # Enum for CAN Bus speed (only 250000 is defined here)
 class CANUSB_SPEED(Enum):
@@ -181,87 +183,14 @@ class UsbCanAdapter:
             # The remaining data starts from byte 3 and continues until the second-to-last byte (before 0x55).
             # Remove the last byte (0x55) from the frame.
             data = frame_hex[5:-2]  # All bytes from byte 3 until the second last byte (before 0x55)
-            # Step 4: Split the data into every 2 bytes
-            # Step 4: Split the string data into every 2 characters
-            
 
-            # Return the ID and data as a dictionary in the desired format
 
         except IndexError as e:
             # Catch IndexError in case the frame does not have the expected length
             error_message = f"Error in CAN data frame\nException: {e}\nTraceback:\n{traceback.format_exc()}"
             print(error_message)
-
-
-
-        decoded_data = {}
-
-        if frame_id == "05ff":  # Battery data frame
-            if dlc == '8':
-                # Alarm1 decoding (byte 1)
-                alarm1 = int(data[8:10], 16)
-                decoded_data['alarm1'] = {}
-
-                # Using if statements to determine the alarm status in decimal
-                if alarm1 & 128:  # 0x80
-                    decoded_data['alarm1']['low_voltage_alarm'] = alarm1 & 128
-
-                if alarm1 & 32:  # 0x20
-                    decoded_data['alarm1']['over_temperature_protection'] = alarm1 & 32
-
-                if alarm1 & 16:  # 0x10
-                    decoded_data['alarm1']['overload_protection'] = alarm1 & 16
-
-                if alarm1 & 2:  # 0x02
-                    decoded_data['alarm1']['cell_low_voltage_alarm'] = alarm1 & 2
-
-                # Alarm2 decoding (byte 2)
-                alarm2 = int(data[10:12], 16)
-                decoded_data['alarm2'] = {}
-
-                # Using if statements to determine the alarm status in decimal
-                if alarm2 & 64:  # 0x40
-                    decoded_data['alarm2']['over_current_alarm'] = alarm2 & 64
-
-                if alarm2 & 32:  # 0x20
-                    decoded_data['alarm2']['under_voltage_protection'] = alarm2 & 32
-
-                if alarm2 & 16:  # 0x10
-                    decoded_data['alarm2']['cell_under_voltage_protection'] = alarm2 & 16
-
-                if alarm2 & 2:  # 0x02
-                    decoded_data['alarm2']['over_temperature_alarm'] = alarm2 & 2
-
-                # Status decoding (byte 3)
-                status = int(data[12:14], 16)
-                decoded_data['status'] = {}
-
-                # Using if statements to determine the status bits in decimal
-                if status & 64:  # 0x40
-                    decoded_data['status']['fully_charged_status'] = status & 64
-
-                if status & 32:  # 0x20
-                    decoded_data['status']['heating_element_on'] = status & 32
-
-                if status & 4:  # 0x04
-                    decoded_data['status']['discharge_current_detected'] = status & 4
-
-                if status & 2:  # 0x02
-                    decoded_data['status']['charging_current_detected'] = status & 2
-
-                # State of Charge (SOC) in decimal
-                decoded_data['soc'] = {}
-                decoded_data['soc']['soc'] = int(data[14:16], 16)
-        
-
-
-        return decoded_data, dlc, frame_id, data
-
-
-      
-
-
-
+        return data, dlc, frame_id
+    
 
 
     def dump_data_frames(self, print_flag: bool) -> int:
@@ -320,6 +249,59 @@ class UsbCanAdapter:
         """
         self.program_running = False
 
+    def check_and_create_database(db_name):
+        # Check if database file exists
+        if not os.path.exists(db_name):
+            print(f"Database {db_name} does not exist. Creating new database.")
+        else:
+            print(f"Database {db_name} exists.")
+
+        # Connect to the SQLite database (this will create the database if it doesn't exist)
+        conn = sqlite3.connect(db_name)
+        cursor = conn.cursor()
+
+        # Create a table if it doesn't exist
+        create_table_query = """
+        CREATE TABLE IF NOT EXISTS data_table (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            value INTEGER NOT NULL
+        );
+        """
+
+        try:
+            cursor.execute(create_table_query)
+            print("Table created successfully (if it didn't exist).")
+        except sqlite3.Error as e:
+            print(f"Error creating table: {e}")
+            return False
+        
+        # Insert sample data into the table
+        insert_data_query = """
+        INSERT INTO data_table (name, value)
+        VALUES ('Sample Name', 123);
+        """
+
+        try:
+            cursor.execute(insert_data_query)
+            conn.commit()  # Commit the changes to the database
+            print("Data inserted successfully!")
+        except sqlite3.Error as e:
+            print(f"Error inserting data: {e}")
+            return False
+
+        # Close the database connection
+        conn.close()
+        return True
+
+
+    # Example usage
+    db_name = "example.db"  # Database file name
+    if check_and_create_database(db_name):
+        print("Database setup completed successfully.")
+    else:
+        print("Database setup failed.")
+
 
 
     def main(self) -> None:
@@ -344,6 +326,7 @@ class UsbCanAdapter:
             time.sleep(1)  # Sleep for 1 second
 
         # Now, send the number 99 to the CAN bus and inject a data frame every 5 seconds
+
 
 
 
