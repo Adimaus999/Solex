@@ -342,7 +342,7 @@ class MyApp(QMainWindow):
         nmea_sentence = f"${nmea_sentence}*{checksum}\r\n"
 
         # Send NMEA sentence to OpenCPN via UDP
-        udp_ip = "144.173.23.250"  # OpenCPN IP address
+        udp_ip = "100.69.35.41"  # OpenCPN IP address
         udp_port = 10110  # OpenCPN UDP port
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
