@@ -1,6 +1,6 @@
 from PyQt6 import uic
 from PyQt6.QtWidgets import QApplication, QMainWindow, QDial, QLabel, QProgressBar, QPushButton, QTextEdit
-from PyQt6.QtCore import QTimer, QUrl
+from PyQt6.QtCore import QTimer, QUrl, QMetaObject, Qt, Q_ARG, QEvent, QObject
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 import sys
 import socket
@@ -9,6 +9,7 @@ from datetime import datetime
 import threading
 import os
 import requests
+from MessageWindow import MessageWindow  # Ensure the MessageWindow class is imported
 
 ADAFRUIT_AIO_USERNAME = "kyebarwell"
 ADAFRUIT_AIO_KEY = "aio_tqjd74FoxeVXDrFdzCIij5wqJ6Kf"
@@ -165,6 +166,11 @@ class SecondWindow(QMainWindow):
         except Exception as e:
             print(f"Failed to open map window: {e}")  # Add error handling
 
+class ShowMessageEvent(QEvent):
+    def __init__(self, message):
+        super().__init__(QEvent.Type(QEvent.registerEventType()))
+        self.message = message
+
 class MyApp(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -302,6 +308,16 @@ class MyApp(QMainWindow):
         self.adafruit_timer.start(10000)  # Send data every 10000 milliseconds (10 seconds)
         print("QTimer started to send data to Adafruit every 5 seconds")
 
+        # Start the UDP server in a separate thread
+        self.server_thread = threading.Thread(target=self.start_udp_server)
+        self.server_thread.daemon = True  # Makes sure the server stops when the program ends
+        self.server_thread.start()
+        print("UDP server started")
+
+    def customEvent(self, event):
+        if isinstance(event, ShowMessageEvent):
+            self.show_message_window(event.message)
+
     def update_speed(self, value):
         self.Speed = value
         print(f"Updating label to: {self.Speed} km/h")
@@ -403,6 +419,39 @@ class MyApp(QMainWindow):
         for char in sentence:
             checksum ^= ord(char)
         return f"{checksum:02X}"
+
+    def start_udp_server(self):
+        udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        udp_socket.bind(('0.0.0.0', 12345))  # Bind to all interfaces on port 12345
+        print("UDP server listening on port 12345")
+
+        while True:
+            try:
+                message, addr = udp_socket.recvfrom(1024)
+                message = message.decode('utf-8')
+                print(f"Received message from {addr}: {message}")
+                print("Message received from sender")  # Print statement to indicate message received
+                # Post a custom event to the main thread
+                QApplication.postEvent(self, ShowMessageEvent(message))
+            except Exception as e:
+                print(f"Error receiving message: {e}")
+
+    def show_message_window(self, message):
+        print("Attempting to show MessageWindow")  # Debug print statement
+        try:
+            # Close any currently open UI
+            self.hide()
+            if hasattr(self, 'second_window') and self.second_window.isVisible():
+                self.second_window.hide()
+            if hasattr(self, 'map_window') and self.map_window.isVisible():
+                self.map_window.hide()
+
+            # Show the message window
+            self.message_window = MessageWindow(message, self)
+            self.message_window.show()
+            print("MessageWindow shown")  # Debug print statement
+        except Exception as e:
+            print(f"Error showing MessageWindow: {e}")
 
 def signal_handler(sig, frame):
     print("Exiting...")
