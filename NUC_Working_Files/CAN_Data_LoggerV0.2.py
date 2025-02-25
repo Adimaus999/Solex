@@ -81,8 +81,12 @@ def initialize_sensors():
         {"name": "solar_voltage", "unit": "V", "description": "Solar voltage"},
 
         {"name": "auxiliary_power", "unit": "W", "description": "Auxiliary power"},
-        {"name": "auxiliary_current", "unit": "A", "description": "Motor current"},
-        {"name": "auxiliary_voltage", "unit": "V", "description": "Motor voltage"},
+        {"name": "auxiliary_current", "unit": "A", "description": "Auxiliary current"},
+        {"name": "auxiliary_voltage", "unit": "V", "description": "Auxiliary voltage"},
+
+        {"name": "battery_power", "unit": "W", "description": "Battery power"},
+        {"name": "battery_current", "unit": "A", "description": "Battery current"},
+        {"name": "battery_voltage", "unit": "V", "description": "Battery voltage"},
     ]
     
     for sensor in sensors:
@@ -405,6 +409,10 @@ class UsbCanAdapter:
             self.insert_sensor_data("motor_current", motor_current_value)
             self.insert_sensor_data("motor_voltage", motor_voltage_value)
 
+            self.motp = motor_power_value
+            self.motc = motor_current_value
+            self.motv = motor_voltage_value
+
             print("Motor Power, Current, and Voltage Inserted into Database")
         except Exception as e:
             print(f"Error inserting motor power data: {e}")
@@ -428,6 +436,10 @@ class UsbCanAdapter:
             self.insert_sensor_data("solar_power", solar_power_value)
             self.insert_sensor_data("solar_current", solar_current_value)
             self.insert_sensor_data("solar_voltage", solar_voltage_value)
+
+            self.solp = solar_power_value
+            self.solc = solar_current_value
+            self.solv = solar_voltage_value
 
             print("Solar Power, Current, and Voltage Inserted into Database")
         except Exception as e:
@@ -453,6 +465,10 @@ class UsbCanAdapter:
             self.insert_sensor_data("auxiliary_current", auxiliary_current_value)
             self.insert_sensor_data("auxiliary_voltage", auxiliary_voltage_value)
 
+            self.auxp = auxiliary_power_value
+            self.auxc = auxiliary_current_value
+            self.auxv = auxiliary_voltage_value
+
             print("Auxiliary Power, Current, and Voltage Inserted into Database")
         except Exception as e:
             print(f"Error inserting auxiliary power data: {e}")
@@ -470,6 +486,18 @@ class UsbCanAdapter:
             print("Temperature Inserted into Database")
         except Exception as e:
             print(f"Error inserting GPS velocity data: {e}")
+    
+    def extra_battery_data(self):
+        # Calculate battery power, current, and voltage
+        battery_power = self.motp + self.solp - self.auxp
+        battery_current = self.motc + self.solc - self.auxc
+        battery_voltage = self.motv + self.solv - self.auxv
+
+        # Insert the battery power, current, and voltage values into the database
+        self.insert_sensor_data("battery_power", battery_power)
+        self.insert_sensor_data("battery_current", battery_current)
+        self.insert_sensor_data("battery_voltage", battery_voltage)
+
 
     # Function to handle location data
     def location(self,data_bits):
