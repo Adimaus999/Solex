@@ -209,13 +209,13 @@ class MyApp(QMainWindow):
         self.progressBar.setMaximum(100)  # Set the maximum value of the progress bar to 100
 
         # Initialize the BatteryCharge variable
-        self.BatteryCharge = 69
+        self.BatteryCharge = 67
 
         # Set the initial value of the progress bar to the BatteryCharge value
         self.progressBar.setValue(self.BatteryCharge)
 
         # Initialize the Range variable
-        self.Range = 69
+        self.Range = 73
 
         # Find the QLabel widget for Range
         self.range_label = self.findChild(QLabel, 'label_2')  # Replace 'label_2' with the object name of your QLabel in the .ui file
@@ -228,7 +228,7 @@ class MyApp(QMainWindow):
         self.range_label.setText(f"{self.Range} km")
 
         # Initialize the Remaining variable
-        self.Remaining = 69
+        self.Remaining = 55
 
         # Find the QLabel widget for Remaining
         self.remaining_label = self.findChild(QLabel, 'label_19')  # Replace 'label_19' with the object name of your QLabel in the .ui file
