@@ -1,7 +1,9 @@
 from PyQt6 import uic
-from PyQt6.QtWidgets import QApplication, QMainWindow, QDial, QLabel, QProgressBar, QPushButton, QTextEdit
-from PyQt6.QtCore import QTimer, QUrl
+from PyQt6.QtWidgets import QApplication, QMainWindow, QDial, QLabel, QProgressBar, QPushButton, QTextEdit, QWidget, QVBoxLayout, QSizePolicy
+from PyQt6.QtCore import QTimer, QUrl, QMetaObject, Qt, Q_ARG, QEvent, QObject
 from PyQt6.QtWebEngineWidgets import QWebEngineView
+import pyqtgraph as pg
+from collections import deque
 import sys
 import socket
 import signal
@@ -9,6 +11,7 @@ from datetime import datetime
 import threading
 import os
 import requests
+from MessageWindow import MessageWindow  # Ensure the MessageWindow class is imported
 
 ADAFRUIT_AIO_USERNAME = "kyebarwell"
 ADAFRUIT_AIO_KEY = "aio_tqjd74FoxeVXDrFdzCIij5wqJ6Kf"
@@ -16,8 +19,40 @@ ADAFRUIT_FEED_KEY = "battery-soc"
 ADAFRUIT_FEED_KEYS = {
     "battery": "battery-soc",
     "speed": "speed",
-    "range": "range"
+    "range": "range",
+    "range_fast": "range-fast",
+    "range_slow": "range-slow",
+    "map": "map"
 }
+# Commit restart
+class BatteryTimePlotWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        uic.loadUi("BatteryTimePlot.ui", self)  # Load the BatteryTimePlot UI file
+        self.plot_widget = self.findChild(QWidget, 'widget')
+        self.plot_layout = QVBoxLayout(self.plot_widget)
+        self.plot = pg.PlotWidget()
+        self.plot_layout.addWidget(self.plot)
+        self.plot.setLabel('left', 'Battery Charge')
+        self.plot.setLabel('bottom', 'Time (seconds)')
+        self.plot.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.plot_widget.setLayout(self.plot_layout)
+        self.data = deque(maxlen=200)
+        self.start_time = datetime.now()  # Store the start time
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_plot)
+        self.timer.start(1000)  # Update every second
+
+    def update_plot(self):
+        print("update_plot called")  # Debug statement
+        self.plot.clear()
+        if self.data:
+            print(f"Data in deque: {self.data}")  # Debug statement
+            elapsed_times = [(x[1] - self.start_time).total_seconds() for x in self.data]  # Calculate elapsed time in seconds
+            charges = [x[0] for x in self.data]
+            print(f"Elapsed times: {elapsed_times}")  # Debug statement
+            print(f"Charges: {charges}")  # Debug statement
+            self.plot.plot(elapsed_times, charges, pen=pg.mkPen(color='w', width=2))  # Ensure the plot line is visible
 
 class MapWindow(QMainWindow):
     def __init__(self, latitude, longitude, main_window, second_window):
@@ -62,9 +97,10 @@ class MapWindow(QMainWindow):
         self.second_window.show()
 
 class SecondWindow(QMainWindow):
-    def __init__(self, main_window, battery_charge, battery_error, battery_status, rpm, current, voltage, temperature, throttle_position, solar_current, solar_voltage, solar_power, latitude, longitude, speed, acceleration, range_, remaining):
+    def __init__(self, main_window, battery_charge, battery_error, battery_status, motor_current, motor_voltage, temperature, auxilliary_voltage, solar_current, solar_voltage, solar_power, latitude, longitude, speed, acceleration, range_, remaining, motor_power, auxilliary_power, auxilliary_current, range_slow, range_fast, battery_time_plot_window):
         super().__init__()
         self.main_window = main_window
+        self.battery_time_plot_window = battery_time_plot_window  # Store the passed instance
         try:
             uic.loadUi("Diagnostics Panel.ui", self)  # Load the second UI file
             print("Second window initialized")  # Add a print statement for debugging
@@ -74,11 +110,10 @@ class SecondWindow(QMainWindow):
         # Find and set the QTextEdit widgets
         self.set_text_edit('textEdit', battery_charge)
         self.set_text_edit('textEdit_3', battery_error)
-        self.set_text_edit('textEdit_2', rpm)
-        self.set_text_edit('textEdit_4', current)
-        self.set_text_edit('textEdit_5', voltage)
+        self.set_text_edit('textEdit_4', motor_current)
+        self.set_text_edit('textEdit_5', motor_voltage)
         self.set_text_edit('textEdit_6', temperature)
-        self.set_text_edit('textEdit_7', throttle_position)
+        self.set_text_edit('textEdit_7', auxilliary_voltage)
         self.set_text_edit('textEdit_8', solar_current)
         self.set_text_edit('textEdit_9', solar_voltage)
         self.set_text_edit('textEdit_10', solar_power)
@@ -88,6 +123,11 @@ class SecondWindow(QMainWindow):
         self.set_text_edit('textEdit_14', acceleration)
         self.set_text_edit('textEdit_15', range_)
         self.set_text_edit('textEdit_16', remaining)
+        self.set_text_edit('textEdit_17', motor_power)
+        self.set_text_edit('textEdit_18', auxilliary_power)
+        self.set_text_edit('textEdit_19', auxilliary_current)
+        self.set_text_edit('textEdit_20', range_slow)
+        self.set_text_edit('textEdit_21', range_fast)
         
         # Update button colors based on battery status
         self.update_button_colors(battery_status)
@@ -100,7 +140,7 @@ class SecondWindow(QMainWindow):
             print("QPushButton_5 found!")
             self.pushButton_5.clicked.connect(self.return_to_main_window)
 
-         #Find the QPushButton widget for opening the map window
+        # Find the QPushButton widget for opening the map window
         print("Looking for pushButton_4...")  # Add a print statement for debugging
         self.pushButton_4 = self.findChild(QPushButton, 'pushButton_4')
         print("hello i am here")
@@ -111,6 +151,17 @@ class SecondWindow(QMainWindow):
             print("QPushButton_4 found!")
             self.pushButton_4.clicked.connect(self.open_map_window)
             print("Connected pushButton_4 to open_map_window")  # Add a print statement for debugging
+
+        # Find the QPushButton widget for opening the battery time plot window
+        self.pushButton_6 = self.findChild(QPushButton, 'pushButton_6')
+        if self.pushButton_6 is None:
+            print("QPushButton_6 not found!")
+        else:
+            print("QPushButton_6 found!")
+            self.pushButton_6.clicked.connect(self.open_battery_time_plot)
+
+    def open_battery_time_plot(self):
+        self.battery_time_plot_window.show()
 
     def set_text_edit(self, object_name, value):
         text_edit = self.findChild(QTextEdit, object_name)
@@ -165,13 +216,18 @@ class SecondWindow(QMainWindow):
         except Exception as e:
             print(f"Failed to open map window: {e}")  # Add error handling
 
+class ShowMessageEvent(QEvent):
+    def __init__(self, message):
+        super().__init__(QEvent.Type(QEvent.registerEventType()))
+        self.message = message
+
 class MyApp(QMainWindow):
     def __init__(self):
         super().__init__()
         uic.loadUi("TestGUI.ui", self)  # Load the UI file
 
         # Find the QDial widget
-        self.dial = self.findChild(QDial, 'dial')  # Replace 'dial' with the object name of your QDial in the .ui file
+        self.dial = self.findChild(QDial, 'dial') 
         if self.dial is None:
             print("QDial not found!")
         else:
@@ -186,7 +242,7 @@ class MyApp(QMainWindow):
         self.dial.setValue(self.Speed)
 
         # Find the QLabel widget for Speed
-        self.label = self.findChild(QLabel, 'label_20')  # Replace 'label_20' with the object name of your QLabel in the .ui file
+        self.label = self.findChild(QLabel, 'label_20')  
         if self.label is None:
             print("QLabel not found!")
         else:
@@ -200,7 +256,7 @@ class MyApp(QMainWindow):
         print("Connected valueChanged signal to update_speed slot")
 
         # Find the QProgressBar widget
-        self.progressBar = self.findChild(QProgressBar, 'progressBar')  # Replace 'progressBar' with the object name of your QProgressBar in the .ui file
+        self.progressBar = self.findChild(QProgressBar, 'progressBar')  
         if self.progressBar is None:
             print("QProgressBar not found!")
         else:
@@ -209,13 +265,13 @@ class MyApp(QMainWindow):
         self.progressBar.setMaximum(100)  # Set the maximum value of the progress bar to 100
 
         # Initialize the BatteryCharge variable
-        self.BatteryCharge = 67
+        self.BatteryCharge = 69
 
         # Set the initial value of the progress bar to the BatteryCharge value
         self.progressBar.setValue(self.BatteryCharge)
 
         # Initialize the Range variable
-        self.Range = 73
+        self.Range = 69
 
         # Find the QLabel widget for Range
         self.range_label = self.findChild(QLabel, 'label_2')  # Replace 'label_2' with the object name of your QLabel in the .ui file
@@ -228,7 +284,7 @@ class MyApp(QMainWindow):
         self.range_label.setText(f"{self.Range} km")
 
         # Initialize the Remaining variable
-        self.Remaining = 55
+        self.Remaining = 69
 
         # Find the QLabel widget for Remaining
         self.remaining_label = self.findChild(QLabel, 'label_19')  # Replace 'label_19' with the object name of your QLabel in the .ui file
@@ -237,8 +293,20 @@ class MyApp(QMainWindow):
         else:
             print("Remaining QLabel found!")
 
+        # Find the QLabel widget for Range
+        self.range_label = self.findChild(QLabel, 'label_2')  # Replace 'label_19' with the object name of your QLabel in the .ui file
+        if self.range_label is None:
+            print("Range QLabel not found!")
+        else:
+            print("Range QLabel found!")
+
+        self.battery_time_plot_window = BatteryTimePlotWindow()
+
         # Update the label to show the initial Remaining value
         self.remaining_label.setText(f"{self.Remaining} km")
+
+        # Update the label to show the initial Remaining value
+        self.range_label.setText(f"{self.Range} km")
 
         # Initialize the BatteryError variable
         self.BatteryError = "No Error"
@@ -246,20 +314,17 @@ class MyApp(QMainWindow):
         # Initialize the BatteryStatus variable
         self.BatteryStatus = "Discharging"  # Example status, you can change this as needed
 
-        # Initialize the RPM variable
-        self.RPM = 3000  # Example value, you can change this as needed
-
         # Initialize the Current variable
-        self.Current = 50  # Example value, you can change this as needed
+        self.MotorCurrent = 50  # Example value, you can change this as needed
 
         # Initialize the Voltage variable
-        self.Voltage = 12.5  # Example value, you can change this as needed
+        self.MotorVoltage = 12.5  # Example value, you can change this as needed
 
         # Initialize the Temperature variable
         self.Temperature = 25  # Example value, you can change this as needed
 
         # Initialize the Throttle Position variable
-        self.ThrottlePosition = 75  # Example value, you can change this as needed
+        self.AuxilliaryVoltage = 75  # Example value, you can change this as needed
 
         # Initialize the SolarCurrent variable
         self.SolarCurrent = 10  # Example value, you can change this as needed
@@ -271,16 +336,40 @@ class MyApp(QMainWindow):
         self.SolarPower = 185  # Example value, you can change this as needed
 
         # Initialize the Latitude variable
-        self.Latitude = 51  # Example value, you can change this as needed
+        self.Latitude = 50.1710  # Example value, you can change this as needed
 
         # Initialize the Longitude variable
-        self.Longitude = -1  # Example value, you can change this as needed
+        self.Longitude = -5.1246  # Example value, you can change this as needed
 
         # Initialize the Acceleration variable
         self.Acceleration = 3.5  # Example value, you can change this as needed
 
+        # Initialize the Motor Power variable
+        self.MotorPower = 100  # Example value, you can change this as needed
+
+        # Initialize the Auxilliary Power variable
+        self.AuxilliaryPower = 100  # Example value, you can change this as needed
+
+        # Initialize the Auxilliary Current variable
+        self.AuxilliaryCurrent = 100  # Example value, you can change this as needed
+
+        # Initialize the Range Slow variable
+        self.RangeSlow = 100  # Example value, you can change this as needed
+
+        # Initialize the Range Fast variable
+        self.RangeFast = 100  # Example value, you can change this as needed
+
+        # Find the QLabel widget for label_21
+        self.label_21 = self.findChild(QLabel, 'label_21')  
+        if self.label_21 is None:
+            print("QLabel label_21 not found!")
+        else:
+            print("QLabel label_21 found!")
+            # Update the color of label_21 based on the comparison between range_ and remaining
+            self.update_label_21_color()
+
         # Find the QPushButton widget
-        self.pushButton = self.findChild(QPushButton, 'pushButton')  # Replace 'pushButton' with the object name of your QPushButton in the .ui file
+        self.pushButton = self.findChild(QPushButton, 'pushButton')  
         if self.pushButton is None:
             print("QPushButton not found!")
         else:
@@ -299,8 +388,18 @@ class MyApp(QMainWindow):
         # Set up a QTimer to send BatteryCharge to Adafruit every 5 seconds
         self.adafruit_timer = QTimer(self)
         self.adafruit_timer.timeout.connect(self.send_to_adafruit)
-        self.adafruit_timer.start(10000)  # Send data every 10000 milliseconds (10 seconds)
+        self.adafruit_timer.start(20000)  # Send data every 20000 milliseconds (20 seconds)
         print("QTimer started to send data to Adafruit every 5 seconds")
+
+        # Start the UDP server in a separate thread
+        self.server_thread = threading.Thread(target=self.start_udp_server)
+        self.server_thread.daemon = True  # Makes sure the server stops when the program ends
+        self.server_thread.start()
+        print("UDP server started")
+
+    def customEvent(self, event):
+        if isinstance(event, ShowMessageEvent):
+            self.show_message_window(event.message)
 
     def update_speed(self, value):
         self.Speed = value
@@ -308,15 +407,24 @@ class MyApp(QMainWindow):
         self.label.setText(f"{self.Speed} km/h")
         print(f"Speed is now: {self.Speed}")
 
+    def update_label_21_color(self):
+        if self.label_21 is not None:
+            print(f"Updating label_21 color: Range = {self.Range}, Remaining = {self.Remaining}")
+            if self.Range > self.Remaining:
+                self.label_21.setStyleSheet("background-color: rgb(0, 255, 16); color: black;")
+                print("label_21 color set to green")
+            else:
+                self.label_21.setStyleSheet("background-color: rgb(255, 0, 0); color: black;")
+                print("label_21 color set to red")
+
     def open_second_window(self):
         battery_charge = self.BatteryCharge  # Pass the BatteryCharge value
         battery_error = self.BatteryError  # Pass the BatteryError value
         battery_status = self.BatteryStatus  # Pass the BatteryStatus value
-        rpm = self.RPM  # Pass the RPM value
-        current = self.Current  # Pass the Current value
-        voltage = self.Voltage  # Pass the Voltage value
+        motor_current = self.MotorCurrent  # Pass the Current value
+        motor_voltage = self.MotorVoltage  # Pass the Voltage value
         temperature = self.Temperature  # Pass the Temperature value
-        throttle_position = self.ThrottlePosition  # Pass the Throttle Position value
+        auxilliary_voltage = self.AuxilliaryVoltage  # Pass the Throttle Position value
         solar_current = self.SolarCurrent  # Pass the SolarCurrent value
         solar_voltage = self.SolarVoltage  # Pass the SolarVoltage value
         solar_power = self.SolarPower  # Pass the SolarPower value
@@ -326,9 +434,15 @@ class MyApp(QMainWindow):
         acceleration = self.Acceleration  # Pass the Acceleration value
         range_ = self.Range  # Pass the Range value
         remaining = self.Remaining  # Pass the Remaining value
-        self.second_window = SecondWindow(self, battery_charge, battery_error, battery_status, rpm, current, voltage, temperature, throttle_position, solar_current, solar_voltage, solar_power, latitude, longitude, speed, acceleration, range_, remaining)
+        motor_power = self.MotorPower  # Pass the Motor Power value
+        auxilliary_power = self.AuxilliaryPower  # Pass the Motor Power value
+        auxilliary_current = self.AuxilliaryCurrent # Pass the Auxilliary Current value
+        range_slow = self.RangeSlow # Pass the Range Slow value
+        range_fast = self.RangeFast # Pass the Range Fast value
+        self.second_window = SecondWindow(self, battery_charge, battery_error, battery_status, motor_current, motor_voltage, temperature, auxilliary_voltage, solar_current, solar_voltage, solar_power, latitude, longitude, speed, acceleration, range_, remaining, motor_power, auxilliary_power, auxilliary_current, range_slow, range_fast, self.battery_time_plot_window)
         self.second_window.show()
         self.hide()
+        self.update_label_21_color()  # Update the color when opening the second window
         print("Opened second window")
 
     def send_to_opencpn(self, latitude, longitude, speed):
@@ -366,10 +480,15 @@ class MyApp(QMainWindow):
         data_points = {
             "battery": self.BatteryCharge,
             "speed": self.Speed,
-            "range": self.Range
+            "range": self.Range,
+            "range_fast": self.RangeFast,
+            "range_slow": self.RangeSlow,
+            "map": f"{self.Latitude},{self.Longitude}"
         }
+        
+        # Send regular data points
         for key, value in data_points.items():
-            url = f"https://io.adafruit.com/api/v2/{ADAFRUIT_AIO_USERNAME}/feeds/{ADAFRUIT_FEED_KEYS[key]}/data"
+            url = f"https://io.adafruit.com/api/v2/{ADAFRUIT_AIO_USERNAME}/feeds/{ADAFRUIT_FEED_KEYS.get(key, key)}/data"
             headers = {
                 "X-AIO-Key": ADAFRUIT_AIO_KEY,
                 "Content-Type": "application/json"
@@ -385,6 +504,32 @@ class MyApp(QMainWindow):
                     print(f"Failed to send {key} to Adafruit: {response.status_code}, {response.text}")
             except Exception as e:
                 print(f"Error sending {key} to Adafruit: {e}")
+
+        # Send location data
+        location_data = {
+            "value": self.Speed,
+            "lat": self.Latitude,
+            "lon": self.Longitude,
+            "ele": 112
+        }
+        url = f"https://io.adafruit.com/api/v2/{ADAFRUIT_AIO_USERNAME}/feeds/{ADAFRUIT_FEED_KEYS['map']}/data"
+        headers = {
+            "X-AIO-Key": ADAFRUIT_AIO_KEY,
+            "Content-Type": "application/json"
+        }
+        try:
+            response = requests.post(url, json=location_data, headers=headers)
+            if response.status_code == 200:
+                print(f"Successfully sent location data to Adafruit: {location_data}")
+            else:
+                print(f"Failed to send location data to Adafruit: {response.status_code}, {response.text}")
+        except Exception as e:
+            print(f"Error sending location data to Adafruit: {e}")
+
+        # Update the battery time plot data
+        print(f"Appending data to plot: {self.BatteryCharge}, {datetime.now()}")
+        self.battery_time_plot_window.data.append((self.BatteryCharge, datetime.now()))
+        print(f"Data appended to plot: {self.battery_time_plot_window.data}")  # Debug statement
 
     def format_nmea_latitude(self, latitude):
         degrees = int(latitude)
@@ -403,6 +548,39 @@ class MyApp(QMainWindow):
         for char in sentence:
             checksum ^= ord(char)
         return f"{checksum:02X}"
+
+    def start_udp_server(self):
+        udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        udp_socket.bind(('0.0.0.0', 12345))  # Bind to all interfaces on port 12345
+        print("UDP server listening on port 12345")
+
+        while True:
+            try:
+                message, addr = udp_socket.recvfrom(1024)
+                message = message.decode('utf-8')
+                print(f"Received message from {addr}: {message}")
+                print("Message received from sender")  # Print statement to indicate message received
+                # Post a custom event to the main thread
+                QApplication.postEvent(self, ShowMessageEvent(message))
+            except Exception as e:
+                print(f"Error receiving message: {e}")
+
+    def show_message_window(self, message):
+        print("Attempting to show MessageWindow")  # Debug print statement
+        try:
+            # Close any currently open UI
+            self.hide()
+            if hasattr(self, 'second_window') and self.second_window.isVisible():
+                self.second_window.hide()
+            if hasattr(self, 'map_window') and self.map_window.isVisible():
+                self.map_window.hide()
+
+            # Show the message window
+            self.message_window = MessageWindow(message, self)
+            self.message_window.show()
+            print("MessageWindow shown")  # Debug print statement
+        except Exception as e:
+            print(f"Error showing MessageWindow: {e}")
 
 def signal_handler(sig, frame):
     print("Exiting...")
