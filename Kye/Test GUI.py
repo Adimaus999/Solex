@@ -24,7 +24,7 @@ ADAFRUIT_FEED_KEYS = {
     "range_slow": "range-slow",
     "map": "map"
 }
-
+# Commit restart
 class BatteryTimePlotWindow(QMainWindow):
     def __init__(self):
         super().__init__()

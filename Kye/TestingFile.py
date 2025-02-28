@@ -56,7 +56,7 @@ class BatteryTimePlotWindow(QMainWindow):
             charges = [x[0] for x in self.data]
             print(f"Elapsed times: {elapsed_times}")  # Debug statement
             print(f"Charges: {charges}")  # Debug statement
-            self.plot.plot(elapsed_times, charges, pen=pg.mkPen(color='b', width=2))  # Ensure the plot line is visible
+            self.plot.plot(elapsed_times, charges, pen=pg.mkPen(color='w', width=2))  # Ensure the plot line is visible
 
 class MapWindow(QMainWindow):
     def __init__(self, latitude, longitude, main_window, second_window):
