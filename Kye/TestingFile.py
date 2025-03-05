@@ -269,13 +269,13 @@ class MyApp(QMainWindow):
         self.progressBar.setMaximum(100)  # Set the maximum value of the progress bar to 100
 
         # Initialize the BatteryCharge variable
-        self.BatteryCharge = 69
+        self.BatteryCharge = 75
 
         # Set the initial value of the progress bar to the BatteryCharge value
         self.progressBar.setValue(self.BatteryCharge)
 
         # Initialize the Range variable
-        self.Range = 69
+        self.Range = 60
         print(f"Initial Range: {self.Range}")
 
         # Initialize the Remaining variable

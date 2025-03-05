@@ -12,6 +12,7 @@ import os
 import numpy as np
 from sqlalchemy import create_engine, Column, Integer, String, Float, TIMESTAMP, ForeignKey, func
 from sqlalchemy.orm import sessionmaker, declarative_base
+import math
 
 # Database configuration
 DB_PATH = "sensors1.db"
@@ -87,6 +88,10 @@ def initialize_sensors():
         {"name": "battery_power", "unit": "W", "description": "Battery power"},
         {"name": "battery_current", "unit": "A", "description": "Battery current"},
         {"name": "battery_voltage", "unit": "V", "description": "Battery voltage"},
+
+        # Distance travelled since last calculation, plus cumulative distance
+        {"name": "distance", "unit": "m", "description": "Distance travelled since last calculation"},
+        {"name": "total_distance", "unit": "m", "description": "Total distance travelled"},
     ]
     
     for sensor in sensors:
@@ -129,7 +134,7 @@ class UsbCanAdapter:
 
     # Initializer method that sets up default values for the adapter
     def __init__(self):
-        self.device_port = "COM5"  # Hardcoded to COM3 for the serial device
+        self.device_port = "COM4"  # Hardcoded to COM3 for the serial device
         self.speed = CANUSB_SPEED.SPEED_250000  # Default CAN Bus speed
         self.baudrate = self.CANUSB_TTY_BAUD_RATE_DEFAULT  # Default baud rate for serial communication
         self.terminate_after = 0  # No automatic termination by default
@@ -140,6 +145,26 @@ class UsbCanAdapter:
         self.frame = bytearray()  # Holds the current frame being processed
         self.serial_device = None  # Placeholder for the serial device object
         self.data_dict = {}  # Holds extracted data from received frames
+        self.previous_lat = None
+        self.previous_lon = None
+        self.cumulative_distance = 0
+
+    @staticmethod
+    def haversine(lat1, lon1, lat2, lon2):
+        """
+        Calculate the great-circle distance between two points on the Earth's surface.
+        """
+        R = 6371000  # Radius of the Earth in meters
+        phi1 = math.radians(lat1)
+        phi2 = math.radians(lat2)
+        delta_phi = math.radians(lat2 - lat1)
+        delta_lambda = math.radians(lon2 - lon1)
+
+        a = math.sin(delta_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+        distance = R * c
+        return distance
 
     @staticmethod
     def canusb_int_to_speed(speed: int) -> CANUSB_SPEED:
@@ -501,41 +526,45 @@ class UsbCanAdapter:
 
     # Function to handle location data
     def location(self,data_bits):
-
         # Extract parts from data_bits
         lat1 = data_bits.get("Bit_0", "0")
         lat2 = data_bits.get("Bit_1", "0")
         lat3 = data_bits.get("Bit_2", "0")
         lat4 = data_bits.get("Bit_3", "0")
 
-        lat_to_convert = lat1+lat2+lat3+lat4
-
-        unsigned_lat = int(lat_to_convert,16)
+        lat_to_convert = lat1 + lat2 + lat3 + lat4
+        unsigned_lat = int(lat_to_convert, 16)
 
         if unsigned_lat >= 2**31:
-            signed_lat = (unsigned_lat - 2**32)*2**-24
+            signed_lat = (unsigned_lat - 2**32) * 2**-24
         else:
-            signed_lat = unsigned_lat*2**-24
-
-
-
+            signed_lat = unsigned_lat * 2**-24
 
         lon1 = data_bits.get("Bit_4", "0")
         lon2 = data_bits.get("Bit_5", "0")
         lon3 = data_bits.get("Bit_6", "0")
         lon4 = data_bits.get("Bit_7", "0")
 
-        lon_to_convert = lon1+lon2+lon3+lon4
-
-        unsigned_lon = int(lon_to_convert,16)
-
-        print(unsigned_lon)
+        lon_to_convert = lon1 + lon2 + lon3 + lon4
+        unsigned_lon = int(lon_to_convert, 16)
 
         if unsigned_lon >= 2**31:
-            signed_lon = (unsigned_lon - 2**32)*2**-23
+            signed_lon = (unsigned_lon - 2**32) * 2**-23
         else:
-            signed_lon = unsigned_lon*2**-23
-        
+            signed_lon = unsigned_lon * 2**-23
+
+        # Update previous coordinates
+        self.previous_lat = signed_lat
+        self.previous_lon = signed_lon
+
+        # Calculate distance if previous coordinates exist
+        if self.previous_lat is not None and self.previous_lon is not None:
+            distance = self.haversine(self.previous_lat, self.previous_lon, signed_lat, signed_lon)
+            self.cumulative_distance += distance
+
+            # Insert distance and cumulative distance into the database
+            self.insert_sensor_data("distance", distance)
+            self.insert_sensor_data("total_distance", self.cumulative_distance)
 
         # Insert data into the database
         try:

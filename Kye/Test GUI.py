@@ -1,5 +1,5 @@
 from PyQt6 import uic
-from PyQt6.QtWidgets import QApplication, QMainWindow, QDial, QLabel, QProgressBar, QPushButton, QTextEdit, QWidget, QVBoxLayout, QSizePolicy
+from PyQt6.QtWidgets import QApplication, QMainWindow, QDial, QLabel, QProgressBar, QPushButton, QTextEdit, QWidget, QVBoxLayout, QSizePolicy, QLineEdit
 from PyQt6.QtCore import QTimer, QUrl, QMetaObject, Qt, Q_ARG, QEvent, QObject
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 import pyqtgraph as pg
@@ -12,6 +12,10 @@ import threading
 import os
 import requests
 from MessageWindow import MessageWindow  # Ensure the MessageWindow class is imported
+import subprocess
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 ADAFRUIT_AIO_USERNAME = "kyebarwell"
 ADAFRUIT_AIO_KEY = "aio_tqjd74FoxeVXDrFdzCIij5wqJ6Kf"
@@ -24,6 +28,73 @@ ADAFRUIT_FEED_KEYS = {
     "range_slow": "range-slow",
     "map": "map"
 }
+
+class RemainingWindow(QMainWindow):
+    def __init__(self, main_window):
+        super().__init__()
+        uic.loadUi("Remaining.ui", self)  # Load the Remaining UI file
+        self.main_window = main_window
+
+        # Find the QLineEdit widget for inputting the new Remaining value
+        self.remaining_input = self.findChild(QLineEdit, 'lineEdit')
+        if self.remaining_input is None:
+            print("QLineEdit for remaining input not found!")
+        else:
+            print("QLineEdit for remaining input found!")
+            self.remaining_input.returnPressed.connect(self.update_remaining)
+
+        # Find the QPushButton widget for returning to the main window
+        self.pushButton = self.findChild(QPushButton, 'pushButton')
+        if self.pushButton is None:
+            print("QPushButton not found!")
+        else:
+            print("QPushButton found!")
+            self.pushButton.clicked.connect(self.return_to_main_window)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        if self.remaining_input is not None:
+            self.remaining_input.setFocus()
+            self.open_osk()
+
+    def open_osk(self):
+        try:
+            os.system('start osk')
+            print("On-screen keyboard opened")
+        except OSError as e:
+            print(f"OS error: {e}")
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+
+    def close_osk(self):
+        try:
+            os.system('taskkill /IM osk.exe /F')
+            print("On-screen keyboard closed")
+        except OSError as e:
+            print(f"OS error: {e}")
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+
+    def update_remaining(self):
+        if self.remaining_input is not None:
+            try:
+                new_remaining = int(self.remaining_input.text())
+                if new_remaining < 0:
+                    raise ValueError("Remaining value cannot be negative")
+                self.main_window.Remaining = new_remaining
+                self.main_window.remaining_label.setText(f"{self.main_window.Remaining} km")
+                self.main_window.update_label_21_color()
+                logging.info(f"Remaining updated to: {self.main_window.Remaining}")
+                self.close_osk()
+                self.close()
+                self.main_window.show()
+            except ValueError:
+                logging.info("Invalid input for Remaining")
+
+    def return_to_main_window(self):
+        self.close()
+        self.main_window.show()
+
 # Commit restart
 class BatteryTimePlotWindow(QMainWindow):
     def __init__(self):
@@ -224,6 +295,7 @@ class ShowMessageEvent(QEvent):
 class MyApp(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.lock = threading.Lock()
         uic.loadUi("TestGUI.ui", self)  # Load the UI file
 
         # Find the QDial widget
@@ -261,6 +333,14 @@ class MyApp(QMainWindow):
             print("QProgressBar not found!")
         else:
             print("QProgressBar found!")
+
+         # Find the QPushButton widget for opening the Remaining window
+        self.pushButton_2 = self.findChild(QPushButton, 'pushButton_2')
+        if self.pushButton_2 is None:
+            print("QPushButton_2 not found!")
+        else:
+            print("QPushButton_2 found!")
+            self.pushButton_2.clicked.connect(self.open_remaining_window)
 
         self.progressBar.setMaximum(100)  # Set the maximum value of the progress bar to 100
 
@@ -413,10 +493,15 @@ class MyApp(QMainWindow):
             print(f"Updating label_21 color: Range = {self.Range}, Remaining = {self.Remaining}")
             if self.Range > self.Remaining:
                 self.label_21.setStyleSheet("background-color: rgb(0, 255, 16); color: black;")
-                print("label_21 color set to green")
+                logging.info("label_21 color set to green")
             else:
                 self.label_21.setStyleSheet("background-color: rgb(255, 0, 0); color: black;")
-                print("label_21 color set to red")
+                logging.info("label_21 color set to red")
+
+    def open_remaining_window(self):
+        self.remaining_window = RemainingWindow(self)
+        self.remaining_window.show()
+        self.hide()
 
     def open_second_window(self):
         battery_charge = self.BatteryCharge  # Pass the BatteryCharge value
@@ -462,9 +547,9 @@ class MyApp(QMainWindow):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
             sock.sendto(nmea_sentence.encode(), (udp_ip, udp_port))
-            print(f"Sent NMEA sentence to OpenCPN: {nmea_sentence}")
+            logging.info(f"Sent NMEA sentence to OpenCPN: {nmea_sentence}")
         except Exception as e:
-            print(f"Failed to send NMEA sentence: {e}")
+            logging.error(f"Failed to send NMEA sentence: {e}")
 
         # Format speed into NMEA sentence
         nmea_speed = f"GPVTG,,T,,M,{speed:.2f},N,,K"
@@ -478,59 +563,60 @@ class MyApp(QMainWindow):
             print(f"Failed to send NMEA speed sentence: {e}")
 
     def send_to_adafruit(self):
-        data_points = {
-            "battery": self.BatteryCharge,
-            "speed": self.Speed,
-            "range": self.Range,
-            "range_fast": self.RangeFast,
-            "range_slow": self.RangeSlow,
-            "map": f"{self.Latitude},{self.Longitude}"
-        }
+        with self.lock:
+            data_points = {
+                "battery": self.BatteryCharge,
+                "speed": self.Speed,
+                "range": self.Range,
+                "range_fast": self.RangeFast,
+                "range_slow": self.RangeSlow,
+                "map": f"{self.Latitude},{self.Longitude}"
+            }
         
-        # Send regular data points
-        for key, value in data_points.items():
-            url = f"https://io.adafruit.com/api/v2/{ADAFRUIT_AIO_USERNAME}/feeds/{ADAFRUIT_FEED_KEYS.get(key, key)}/data"
+            # Send regular data points
+            for key, value in data_points.items():
+                url = f"https://io.adafruit.com/api/v2/{ADAFRUIT_AIO_USERNAME}/feeds/{ADAFRUIT_FEED_KEYS.get(key, key)}/data"
+                headers = {
+                    "X-AIO-Key": ADAFRUIT_AIO_KEY,
+                    "Content-Type": "application/json"
+                }
+                data = {
+                    "value": value
+                }
+                try:
+                    response = requests.post(url, json=data, headers=headers)
+                    if response.status_code == 200:
+                        print(f"Successfully sent {key} to Adafruit: {value}")
+                    else:
+                        print(f"Failed to send {key} to Adafruit: {response.status_code}, {response.text}")
+                except Exception as e:
+                    print(f"Error sending {key} to Adafruit: {e}")
+
+            # Send location data
+            location_data = {
+                "value": self.Speed,
+                "lat": self.Latitude,
+                "lon": self.Longitude,
+                "ele": 112
+            }
+            url = f"https://io.adafruit.com/api/v2/{ADAFRUIT_AIO_USERNAME}/feeds/{ADAFRUIT_FEED_KEYS['map']}/data"
             headers = {
                 "X-AIO-Key": ADAFRUIT_AIO_KEY,
                 "Content-Type": "application/json"
             }
-            data = {
-                "value": value
-            }
             try:
-                response = requests.post(url, json=data, headers=headers)
+                response = requests.post(url, json=location_data, headers=headers)
                 if response.status_code == 200:
-                    print(f"Successfully sent {key} to Adafruit: {value}")
+                    print(f"Successfully sent location data to Adafruit: {location_data}")
                 else:
-                    print(f"Failed to send {key} to Adafruit: {response.status_code}, {response.text}")
+                    print(f"Failed to send location data to Adafruit: {response.status_code}, {response.text}")
             except Exception as e:
-                print(f"Error sending {key} to Adafruit: {e}")
+                print(f"Error sending location data to Adafruit: {e}")
 
-        # Send location data
-        location_data = {
-            "value": self.Speed,
-            "lat": self.Latitude,
-            "lon": self.Longitude,
-            "ele": 112
-        }
-        url = f"https://io.adafruit.com/api/v2/{ADAFRUIT_AIO_USERNAME}/feeds/{ADAFRUIT_FEED_KEYS['map']}/data"
-        headers = {
-            "X-AIO-Key": ADAFRUIT_AIO_KEY,
-            "Content-Type": "application/json"
-        }
-        try:
-            response = requests.post(url, json=location_data, headers=headers)
-            if response.status_code == 200:
-                print(f"Successfully sent location data to Adafruit: {location_data}")
-            else:
-                print(f"Failed to send location data to Adafruit: {response.status_code}, {response.text}")
-        except Exception as e:
-            print(f"Error sending location data to Adafruit: {e}")
-
-        # Update the battery time plot data
-        print(f"Appending data to plot: {self.BatteryCharge}, {datetime.now()}")
-        self.battery_time_plot_window.data.append((self.BatteryCharge, datetime.now()))
-        print(f"Data appended to plot: {self.battery_time_plot_window.data}")  # Debug statement
+            # Update the battery time plot data
+            print(f"Appending data to plot: {self.BatteryCharge}, {datetime.now()}")
+            self.battery_time_plot_window.data.append((self.BatteryCharge, datetime.now()))
+            print(f"Data appended to plot: {self.battery_time_plot_window.data}")  # Debug statement
 
     def format_nmea_latitude(self, latitude):
         degrees = int(latitude)
