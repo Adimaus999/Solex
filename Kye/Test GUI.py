@@ -344,27 +344,26 @@ class MyApp(QMainWindow):
         self.progressBar.setMaximum(100)  # Set the maximum value of the progress bar to 100
 
         # Initialize the BatteryCharge variable
-        self.BatteryCharge = 77
+        self.BatteryCharge = 69
 
         # Set the initial value of the progress bar to the BatteryCharge value
         self.progressBar.setValue(self.BatteryCharge)
 
         # Initialize the Range variable
-        self.Range = 68
-        print(f"Initial Range: {self.Range}")
+        self.Range = 69
+
+        # Find the QLabel widget for Range
+        self.range_label = self.findChild(QLabel, 'label_2')  # Replace 'label_2' with the object name of your QLabel in the .ui file
+        if self.range_label is None:
+            print("Range QLabel not found!")
+        else:
+            print("Range QLabel found!")
+
+        # Update the label to show the initial Range value
+        self.range_label.setText(f"{self.Range} km")
 
         # Initialize the Remaining variable
-        self.Remaining = 67
-        print(f"Initial Remaining: {self.Remaining}")
-
-        # Find the QLabel widget for label_21
-        self.label_21 = self.findChild(QLabel, 'label_21')  # Replace 'label_21' with the object name of your QLabel in the .ui file
-        if self.label_21 is None:
-            print("QLabel label_21 not found!")
-        else:
-            print("QLabel label_21 found!")
-            # Update the color of label_21 based on the comparison between range_ and remaining
-            self.update_label_21_color()
+        self.Remaining = 69
 
         # Find the QLabel widget for Remaining
         self.remaining_label = self.findChild(QLabel, 'label_19')  # Replace 'label_19' with the object name of your QLabel in the .ui file
