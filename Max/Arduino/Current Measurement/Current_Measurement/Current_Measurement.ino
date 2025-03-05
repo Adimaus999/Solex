@@ -1,6 +1,6 @@
 const int sensorPin0_Vout = A0;
 const int sensorPin1_Vref = A1;
-const int Vcc = 5;
+const int Vcc = 4.69;
 #define NUM_READINGS 100  // Number of readings to average
 
 float readings[NUM_READINGS];  // Array to store past readings

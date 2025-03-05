@@ -18,7 +18,7 @@ const float VREF = 4.615;
 const float R1 = 226500; // 220k ohms
 const float R2 = 12080;  // 12k ohms
 
-const int numReadings = 10;
+const int numReadings = 50;
 float temperatureReadings[numReadings];
 float currentSensorVREFReadings[numReadings];
 float batteryVoltageReadings[numReadings];
@@ -130,5 +130,5 @@ void loop(void)
   Serial.print("Average Current 3: ");
   Serial.println(averageCurrent3);
 
-  delay(100); // 10 times per second
+  delay(50); // 10 times per second
 }

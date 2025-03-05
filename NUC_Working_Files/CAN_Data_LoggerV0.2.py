@@ -603,7 +603,7 @@ class UsbCanAdapter:
 
             self.insert_sensor_data("acceleration_t", acc_t)
 
-            print("GPS Velocity Inserted into Database")
+            print("GPS Acceleration Inserted into Database")
         except Exception as e:
             print(f"Error inserting GPS velocity data: {e}")
     # Function to handle velocity data
