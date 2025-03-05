@@ -32,24 +32,22 @@ ADAFRUIT_FEED_KEYS = {
 class RemainingWindow(QMainWindow):
     def __init__(self, main_window):
         super().__init__()
-        uic.loadUi("Remaining.ui", self)  # Load the Remaining UI file
+        try:
+            uic.loadUi("Remaining.ui", self)  # Load the Remaining UI file
+        except Exception as e:
+            logging.error(f"Failed to load Remaining.ui: {e}")
+            raise
         self.main_window = main_window
 
         # Find the QLineEdit widget for inputting the new Remaining value
         self.remaining_input = self.findChild(QLineEdit, 'lineEdit')
-        if self.remaining_input is None:
-            print("QLineEdit for remaining input not found!")
-        else:
-            print("QLineEdit for remaining input found!")
-            self.remaining_input.returnPressed.connect(self.update_remaining)
+        assert self.remaining_input is not None, "QLineEdit for remaining input not found!"
+        self.remaining_input.returnPressed.connect(self.update_remaining)
 
         # Find the QPushButton widget for returning to the main window
         self.pushButton = self.findChild(QPushButton, 'pushButton')
-        if self.pushButton is None:
-            print("QPushButton not found!")
-        else:
-            print("QPushButton found!")
-            self.pushButton.clicked.connect(self.return_to_main_window)
+        assert self.pushButton is not None, "QPushButton not found!"
+        self.pushButton.clicked.connect(self.return_to_main_window)
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -60,27 +58,26 @@ class RemainingWindow(QMainWindow):
     def open_osk(self):
         try:
             os.system('start osk')
-            print("On-screen keyboard opened")
+            logging.info("On-screen keyboard opened")
         except OSError as e:
-            print(f"OS error: {e}")
+            logging.error(f"OS error: {e}")
         except Exception as e:
-            print(f"Unexpected error: {e}")
+            logging.error(f"Unexpected error: {e}")
 
     def close_osk(self):
         try:
             os.system('taskkill /IM osk.exe /F')
-            print("On-screen keyboard closed")
+            logging.info("On-screen keyboard closed")
         except OSError as e:
-            print(f"OS error: {e}")
+            logging.error(f"OS error: {e}")
         except Exception as e:
-            print(f"Unexpected error: {e}")
+            logging.error(f"Unexpected error: {e}")
 
     def update_remaining(self):
         if self.remaining_input is not None:
             try:
                 new_remaining = int(self.remaining_input.text())
-                if new_remaining < 0:
-                    raise ValueError("Remaining value cannot be negative")
+                assert new_remaining >= 0, "Remaining value cannot be negative"
                 self.main_window.Remaining = new_remaining
                 self.main_window.remaining_label.setText(f"{self.main_window.Remaining} km")
                 self.main_window.update_label_21_color()
@@ -90,6 +87,8 @@ class RemainingWindow(QMainWindow):
                 self.main_window.show()
             except ValueError:
                 logging.info("Invalid input for Remaining")
+            except AssertionError as e:
+                logging.error(f"Assertion error: {e}")
 
     def return_to_main_window(self):
         self.close()
