@@ -81,12 +81,8 @@ def initialize_sensors():
         {"name": "solar_voltage", "unit": "V", "description": "Solar voltage"},
 
         {"name": "auxiliary_power", "unit": "W", "description": "Auxiliary power"},
-        {"name": "auxiliary_current", "unit": "A", "description": "Auxiliary current"},
-        {"name": "auxiliary_voltage", "unit": "V", "description": "Auxiliary voltage"},
-
-        {"name": "battery_power", "unit": "W", "description": "Battery power"},
-        {"name": "battery_current", "unit": "A", "description": "Battery current"},
-        {"name": "battery_voltage", "unit": "V", "description": "Battery voltage"},
+        {"name": "auxiliary_current", "unit": "A", "description": "Motor current"},
+        {"name": "auxiliary_voltage", "unit": "V", "description": "Motor voltage"},
     ]
     
     for sensor in sensors:
@@ -129,7 +125,7 @@ class UsbCanAdapter:
 
     # Initializer method that sets up default values for the adapter
     def __init__(self):
-        self.device_port = "COM5"  # Hardcoded to COM3 for the serial device
+        self.device_port = "COM3"  # Hardcoded to COM3 for the serial device
         self.speed = CANUSB_SPEED.SPEED_250000  # Default CAN Bus speed
         self.baudrate = self.CANUSB_TTY_BAUD_RATE_DEFAULT  # Default baud rate for serial communication
         self.terminate_after = 0  # No automatic termination by default
