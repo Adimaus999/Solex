@@ -1,7 +1,7 @@
-const int sensorPin0_Vout = A1;
+const int sensorPin0_Vout = A4;
 const int sensorPin1_Vref = A7;
 const int Vcc = 4.615;
-#define NUM_READINGS 100  // Number of readings to average
+#define NUM_READINGS 25  // Number of readings to average
 
 float readings[NUM_READINGS];  // Array to store past readings
 int readIndex = 0;             // Index to track position in the buffer
@@ -28,8 +28,14 @@ void loop() {
 
     // Calculate current
     float current_temp = ((Vout - Vref) * 200) / 1.25;
-    float current = current_temp + ((current_temp* -0.0856) - 0.7497);
+    float current = current_temp + ((current_temp * 0.1288) - 0.278);
 
+    // If the current is less than 0, set it to 0
+    if (current < 0) {
+        current = 0;
+    }
+    
+   
     // Remove the oldest reading from the total sum
     total -= readings[readIndex];
 
@@ -75,5 +81,5 @@ void loop() {
     Serial.print("Avg Current: ");
     Serial.println(averageCurrent, 2); // Print with 2 decimal places
 
-    delay(10);  // Wait 250ms before next reading
+    delay(100);  // Wait 250ms before next reading
 }
