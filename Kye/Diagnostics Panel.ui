@@ -949,6 +949,9 @@
     </property>
    </widget>
    <widget class="QTextEdit" name="textEdit">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>130</x>
@@ -1002,6 +1005,9 @@
     </property>
    </widget>
    <widget class="QTextEdit" name="textEdit_3">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>130</x>
@@ -1162,6 +1168,9 @@ QPushButton:pressed {
     </property>
    </widget>
    <widget class="QTextEdit" name="textEdit_4">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>430</x>
@@ -1215,6 +1224,9 @@ QPushButton:pressed {
     </property>
    </widget>
    <widget class="QTextEdit" name="textEdit_5">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>430</x>
@@ -1718,6 +1730,9 @@ QPushButton:pressed {
     </property>
    </widget>
    <widget class="QTextEdit" name="textEdit_8">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>700</x>
@@ -1787,6 +1802,9 @@ QPushButton:pressed {
     </property>
    </widget>
    <widget class="QTextEdit" name="textEdit_9">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>700</x>
@@ -1820,6 +1838,9 @@ QPushButton:pressed {
     </property>
    </widget>
    <widget class="QTextEdit" name="textEdit_10">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>700</x>
@@ -3205,6 +3226,9 @@ QPushButton:pressed {
     </property>
    </widget>
    <widget class="QTextEdit" name="textEdit_11">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>100</x>
@@ -3220,6 +3244,9 @@ QPushButton:pressed {
     </property>
    </widget>
    <widget class="QTextEdit" name="textEdit_12">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>100</x>
@@ -3273,6 +3300,9 @@ QPushButton:pressed {
     </property>
    </widget>
    <widget class="QTextEdit" name="textEdit_13">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>340</x>
@@ -3345,6 +3375,9 @@ QPushButton:pressed {
     </property>
    </widget>
    <widget class="QTextEdit" name="textEdit_14">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>340</x>
@@ -3417,6 +3450,9 @@ QPushButton:pressed {
     </property>
    </widget>
    <widget class="QTextEdit" name="textEdit_15">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>610</x>
@@ -3901,6 +3937,9 @@ QPushButton:pressed {
     </property>
    </widget>
    <widget class="QTextEdit" name="textEdit_16">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>610</x>
@@ -5268,6 +5307,9 @@ QPushButton:pressed {
     </property>
    </widget>
    <widget class="QTextEdit" name="textEdit_17">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>430</x>
@@ -5769,6 +5811,9 @@ QPushButton:pressed {
     </property>
    </widget>
    <widget class="QTextEdit" name="textEdit_6">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>130</x>
@@ -5842,6 +5887,9 @@ QPushButton:pressed {
     </property>
    </widget>
    <widget class="QTextEdit" name="textEdit_7">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>560</x>
@@ -5913,6 +5961,9 @@ QPushButton:pressed {
     </property>
    </widget>
    <widget class="QTextEdit" name="textEdit_18">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>730</x>
@@ -5928,6 +5979,9 @@ QPushButton:pressed {
     </property>
    </widget>
    <widget class="QTextEdit" name="textEdit_19">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>380</x>
@@ -5981,6 +6035,9 @@ QPushButton:pressed {
     </property>
    </widget>
    <widget class="QTextEdit" name="textEdit_20">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>880</x>
@@ -6053,6 +6110,9 @@ QPushButton:pressed {
     </property>
    </widget>
    <widget class="QTextEdit" name="textEdit_21">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>880</x>
