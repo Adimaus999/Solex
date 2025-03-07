@@ -341,7 +341,7 @@ class UsbCanAdapter:
             self.dump_data_frames(print_flag=True)
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Get the current time
             print(f"Current Time: {current_time}")  # Print the current time
-            time.sleep(1)  # Sleep for 1 second
+              # Sleep for 1 second
 
         # Now, send the number 99 to the CAN bus and inject a data frame every 5 seconds
 

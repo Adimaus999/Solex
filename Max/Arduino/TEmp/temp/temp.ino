@@ -30,9 +30,9 @@ int readIndex = 0;
 float totalTemperature = 0;
 float totalCurrentSensorVREF = 0;
 float totalBatteryVoltage = 0;
-float totalCurrentSensor1 = 0;
-float totalCurrentSensor2 = 0;
-float totalCurrentSensor3 = 0;
+float totalCurrentSensor1Motor = 0;
+float totalCurrentSensor2Auxiliarry = 0;
+float totalCurrentSensor3Solar = 0;
 
 /*
  * The setup function. We only start the sensors here

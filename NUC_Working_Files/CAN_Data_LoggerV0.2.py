@@ -15,9 +15,9 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 import math
 
 # Database configuration
-DB_PATH = "sensors1.db"
+DB_PATH = "new_sensors.db"
 ENGINE = create_engine(f"sqlite:///{DB_PATH}", echo=False)
-Session = sessionmaker(bind=ENGINE)
+Session = sessionmaker(bind=ENGINE) 
 session = Session()
 Base = declarative_base()
 
@@ -71,6 +71,9 @@ def initialize_sensors():
 
         {"name": "heading", "unit": "°", "description": "GPS velocity heading"},
 
+        {"name": "distance", "unit": "m", "description": "Distance travelled since last calculation"},
+        {"name": "total_distance", "unit": "m", "description": "Total distance travelled"},
+
         {"name": "temperature", "unit": "°C", "description": "Temperature sensor"},
 
         {"name": "motor_power", "unit": "W", "description": "Motor power"},
@@ -87,11 +90,7 @@ def initialize_sensors():
 
         {"name": "battery_power", "unit": "W", "description": "Battery power"},
         {"name": "battery_current", "unit": "A", "description": "Battery current"},
-        {"name": "battery_voltage", "unit": "V", "description": "Battery voltage"},
-
-        # Distance travelled since last calculation, plus cumulative distance
-        {"name": "distance", "unit": "m", "description": "Distance travelled since last calculation"},
-        {"name": "total_distance", "unit": "m", "description": "Total distance travelled"},
+        {"name": "battery_voltage", "unit": "V", "description": "Battery voltage"},     
     ]
     
     for sensor in sensors:
@@ -134,7 +133,7 @@ class UsbCanAdapter:
 
     # Initializer method that sets up default values for the adapter
     def __init__(self):
-        self.device_port = "COM4"  # Hardcoded to COM3 for the serial device
+        self.device_port = "COM5"  # Hardcoded to COM3 for the serial device
         self.speed = CANUSB_SPEED.SPEED_250000  # Default CAN Bus speed
         self.baudrate = self.CANUSB_TTY_BAUD_RATE_DEFAULT  # Default baud rate for serial communication
         self.terminate_after = 0  # No automatic termination by default
@@ -148,23 +147,6 @@ class UsbCanAdapter:
         self.previous_lat = None
         self.previous_lon = None
         self.cumulative_distance = 0
-
-    @staticmethod
-    def haversine(lat1, lon1, lat2, lon2):
-        """
-        Calculate the great-circle distance between two points on the Earth's surface.
-        """
-        R = 6371000  # Radius of the Earth in meters
-        phi1 = math.radians(lat1)
-        phi2 = math.radians(lat2)
-        delta_phi = math.radians(lat2 - lat1)
-        delta_lambda = math.radians(lon2 - lon1)
-
-        a = math.sin(delta_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2
-        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-
-        distance = R * c
-        return distance
 
     @staticmethod
     def canusb_int_to_speed(speed: int) -> CANUSB_SPEED:
@@ -334,11 +316,28 @@ class UsbCanAdapter:
         Sets the `program_running` flag to False.
         """
         self.program_running = False
+
     
 
 
 
-        
+    def great_circle_distance(lat1, lon1, lat2, lon2):
+        """
+        Calculate the great-circle distance between two points on the Earth's surface.
+        The input coordinates are in decimal degrees.
+        """
+        R = 6371000  # Radius of the Earth in meters
+        phi1 = math.radians(lat1)
+        phi2 = math.radians(lat2)
+        delta_phi = math.radians(lat2 - lat1)
+        delta_lambda = math.radians(lon2 - lon1)
+
+        a = math.sin(delta_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+        distance = R * c
+        return distance
+    
     # Function to insert NUMERIC sensor data (SOC, GPS, etc.)
     def insert_sensor_data(self, sensor_name, value):
         sensor = session.query(Sensor).filter_by(name=sensor_name).first()
@@ -414,114 +413,84 @@ class UsbCanAdapter:
         except Exception as e:
             print(f"Error inserting battery data: {e}")
 
-    # Function to handle motor power data and insert into the database
-    def motor_power(self,data_bits):
-        try:
-            # Extract and combine parts from data_bits for motor power
-            mp_to_convert = data_bits.get("Bit_0", "0") + data_bits.get("Bit_1", "0") + data_bits.get("Bit_2", "0")
-            motor_power_value = int(mp_to_convert, 16) / 1000
 
-            # Extract and combine parts from data_bits for motor current
-            mc_to_convert = data_bits.get("Bit_3", "0") + data_bits.get("Bit_4", "0") + data_bits.get("Bit_5", "0")
-            motor_current_value = int(mc_to_convert, 16) / 1000
+    
 
-            # Extract and combine parts from data_bits for motor voltage
-            mv_to_convert = data_bits.get("Bit_6", "0") + data_bits.get("Bit_7", "0")
-            motor_voltage_value = int(mv_to_convert, 16) / 1000
-
-            # Insert the motor power, current, and voltage values into the database
-            self.insert_sensor_data("motor_power", motor_power_value)
-            self.insert_sensor_data("motor_current", motor_current_value)
-            self.insert_sensor_data("motor_voltage", motor_voltage_value)
-
-            self.motp = motor_power_value
-            self.motc = motor_current_value
-            self.motv = motor_voltage_value
-
-            print("Motor Power, Current, and Voltage Inserted into Database")
-        except Exception as e:
-            print(f"Error inserting motor power data: {e}")
-
-    # Function to handle solar power data and insert into the database
-    def solar_power(self,data_bits):
-        try:
-            # Extract and combine parts from data_bits for solar power
-            sp_to_convert = data_bits.get("Bit_0", "0") + data_bits.get("Bit_1", "0") + data_bits.get("Bit_2", "0")
-            solar_power_value = int(sp_to_convert, 16) / 1000
-
-            # Extract and combine parts from data_bits for solar current
-            sc_to_convert = data_bits.get("Bit_3", "0") + data_bits.get("Bit_4", "0") + data_bits.get("Bit_5", "0")
-            solar_current_value = int(sc_to_convert, 16) / 1000
-
-            # Extract and combine parts from data_bits for solar voltage
-            sv_to_convert = data_bits.get("Bit_6", "0") + data_bits.get("Bit_7", "0")
-            solar_voltage_value = int(sv_to_convert, 16) / 1000
-
-            # Insert the solar power, current, and voltage values into the database
-            self.insert_sensor_data("solar_power", solar_power_value)
-            self.insert_sensor_data("solar_current", solar_current_value)
-            self.insert_sensor_data("solar_voltage", solar_voltage_value)
-
-            self.solp = solar_power_value
-            self.solc = solar_current_value
-            self.solv = solar_voltage_value
-
-            print("Solar Power, Current, and Voltage Inserted into Database")
-        except Exception as e:
-            print(f"Error inserting solar power data: {e}")
-
-    # Function to handle auxiliary power data and insert into the database
-    def auxiliary_power(self,data_bits):
-        try:
-            # Extract and combine parts from data_bits for auxiliary power
-            ap_to_convert = data_bits.get("Bit_0", "0") + data_bits.get("Bit_1", "0") + data_bits.get("Bit_2", "0")
-            auxiliary_power_value = int(ap_to_convert, 16) / 1000
-
-            # Extract and combine parts from data_bits for auxiliary current
-            ac_to_convert = data_bits.get("Bit_3", "0") + data_bits.get("Bit_4", "0") + data_bits.get("Bit_5", "0")
-            auxiliary_current_value = int(ac_to_convert, 16) / 1000
-
-            # Extract and combine parts from data_bits for auxiliary voltage
-            av_to_convert = data_bits.get("Bit_6", "0") + data_bits.get("Bit_7", "0")
-            auxiliary_voltage_value = int(av_to_convert, 16) / 1000
-
-            # Insert the auxiliary power, current, and voltage values into the database
-            self.insert_sensor_data("auxiliary_power", auxiliary_power_value)
-            self.insert_sensor_data("auxiliary_current", auxiliary_current_value)
-            self.insert_sensor_data("auxiliary_voltage", auxiliary_voltage_value)
-
-            self.auxp = auxiliary_power_value
-            self.auxc = auxiliary_current_value
-            self.auxv = auxiliary_voltage_value
-
-            print("Auxiliary Power, Current, and Voltage Inserted into Database")
-        except Exception as e:
-            print(f"Error inserting auxiliary power data: {e}")
+   
 
     # Function to handle temperature data
-    def temperature(self,data_bits):
+    def temperature_voltage(self,data_bits):
         temperature = [] 
+        battery_voltage = []
+        # Extract and combine parts from data_bits for temperature
         temp_to_convert = data_bits.get("Bit_0", "0") + data_bits.get("Bit_1", "0") + data_bits.get("Bit_2", "0")
         temperature = int(temp_to_convert, 16)/1000
 
-        try:
-            # Insert x velocity
-            self.insert_sensor_data("temperature", temperature)
+        # Extract and combine parts from data_bits for voltage
+        voltage_to_convert = data_bits.get("Bit_3", "0") + data_bits.get("Bit_4", "0") + data_bits.get("Bit_5", "0")
+        battery_voltage = int(voltage_to_convert, 16)/1000
 
+
+        self.battery_voltage = battery_voltage
+
+        try:
+            self.insert_sensor_data("temperature", temperature)
+            self.insert_sensor_data("battery_voltage", battery_voltage)
             print("Temperature Inserted into Database")
         except Exception as e:
             print(f"Error inserting GPS velocity data: {e}")
     
-    def extra_battery_data(self):
-        # Calculate battery power, current, and voltage
-        battery_power = self.motp + self.solp - self.auxp
-        battery_current = self.motc + self.solc - self.auxc
-        battery_voltage = self.motv + self.solv - self.auxv
+    def motor_aux_solar(self,data_bits):
+        print(data_bits)
+        try:
+            motor_current = []
+            aux_current = []
+            solar_current = []
 
-        # Insert the battery power, current, and voltage values into the database
-        self.insert_sensor_data("battery_power", battery_power)
-        self.insert_sensor_data("battery_current", battery_current)
-        self.insert_sensor_data("battery_voltage", battery_voltage)
+            # Extract and combine parts from data_bits for motor current
+            mc_to_convert = data_bits.get("Bit_0", "0") + data_bits.get("Bit_1", "0") + data_bits.get("Bit_2", "0")
+            motor_current = int(mc_to_convert, 16) / 1000
+
+            # Extract and combine parts from data_bits for auxiliary current
+            ac_to_convert = data_bits.get("Bit_3", "0") + data_bits.get("Bit_4", "0") 
+            aux_current = int(ac_to_convert, 16) / 1000
+            print("aux_to_convert",ac_to_convert)
+            # Extract and combine parts from data_bits for solar current
+            sc_to_convert = data_bits.get("Bit_5", "0") + data_bits.get("Bit_6", "0")
+            solar_current = int(sc_to_convert, 16) / 1000
+
+            motor_voltage = self.battery_voltage
+            aux_voltage = self.battery_voltage
+            solar_voltage = self.battery_voltage
+
+            motor_power = motor_current * motor_voltage
+            aux_power = aux_current * aux_voltage
+            solar_power = solar_current * solar_voltage
+
+            battery_current = motor_current + aux_current - solar_current
+            battery_power = motor_power + aux_power - solar_power
+
+
+            # Insert the battery power, current, and voltage values into the database
+            self.insert_sensor_data("battery_power", battery_power)
+            self.insert_sensor_data("battery_current", battery_current)
+            
+            self.insert_sensor_data("motor_current", motor_current)
+            self.insert_sensor_data("motor_power", motor_power)
+            self.insert_sensor_data("motor_voltage", motor_voltage)
+
+            self.insert_sensor_data("solar_current", solar_current)
+            self.insert_sensor_data("solar_power", solar_power)
+            self.insert_sensor_data("solar_voltage", solar_voltage)
+
+            self.insert_sensor_data("auxiliary_current", aux_current)
+            self.insert_sensor_data("auxiliary_power", aux_power)
+            self.insert_sensor_data("auxiliary_voltage", aux_voltage)
+
+            print("Current Sensor Data Inserted into Database")
+        except Exception as e:
+            print(f"Error inserting battery power data: {e}")
+
 
 
     # Function to handle location data
@@ -559,7 +528,7 @@ class UsbCanAdapter:
 
         # Calculate distance if previous coordinates exist
         if self.previous_lat is not None and self.previous_lon is not None:
-            distance = self.haversine(self.previous_lat, self.previous_lon, signed_lat, signed_lon)
+            distance = self.great_circle_distance(self.previous_lat, self.previous_lon, signed_lat, signed_lon)
             self.cumulative_distance += distance
 
             # Insert distance and cumulative distance into the database
@@ -619,8 +588,6 @@ class UsbCanAdapter:
 
         acc_t = np.sqrt(signed_acc_x**2 + signed_acc_y**2)
 
-
-
         try:
             # Insert x velocity
             self.insert_sensor_data("acceleration_x", signed_acc_x)
@@ -678,7 +645,6 @@ class UsbCanAdapter:
         vel_t = np.sqrt(signed_vel_x**2 + signed_vel_y**2)
         heading = 90-(np.degrees(np.arctan2(signed_vel_y, signed_vel_x)))
 
-
         try:
             # Insert x velocity
             self.insert_sensor_data("velocity_x", signed_vel_x)
@@ -719,10 +685,8 @@ class UsbCanAdapter:
             "0071": self.location,
             "0076": self.velocity,
             "0035": self.acceleration,
-            "0010": self.temperature,
-            "0020": self.motor_power,
-            "0021": self.solar_power,
-            "0022": self.auxiliary_power
+            "0010": self.temperature_voltage,
+            "0020": self.motor_aux_solar,
         }
         print(frame_id)
         # Call the appropriate function based on frame ID
@@ -752,9 +716,6 @@ class UsbCanAdapter:
         # Start dumping data frames (default behavior)
         while True:
             self.dump_data_frames()
-
-
-        # Now, send the number 99 to the CAN bus and inject a data frame every 5 seconds
 
 
 
