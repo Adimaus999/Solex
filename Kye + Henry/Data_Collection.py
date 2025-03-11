@@ -101,7 +101,7 @@ def initialize_sensors():
 
 initialize_sensors()
 
-subprocess.Popen(["powershell", "-NoExit", "-Command", "python HenryCodeV2.py"])
+subprocess.Popen(["powershell", "-NoExit", "-Command", "python GUI_Script.py"])
 
 # Enum for CAN Bus speed (only 250000 is defined here)
 class CANUSB_SPEED(Enum):
