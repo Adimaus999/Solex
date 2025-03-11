@@ -9,6 +9,7 @@ import subprocess
 import numpy as np
 import sqlite3
 import socket
+import math
 import signal
 from datetime import datetime
 import threading
@@ -534,7 +535,7 @@ class MyApp(QMainWindow):
         print(self.Speed)
 
         # Set the initial value of the dial to the Speed value
-        self.dial.setValue(int(self.Speed))
+        self.dial.setValue(int(round(self.Speed)))
 
         # Find the QLabel widget for Speed
         self.label = self.findChild(QLabel, 'label_20')  
@@ -732,7 +733,7 @@ class MyApp(QMainWindow):
         try:
             self.Speed = round(self.SQLread(10), 2)
             self.label.setText(f"{self.Speed} km/h")
-            self.dial.setValue(int(self.Speed))
+            self.dial.setValue(int(round(self.Speed)))
 
             self.BatteryCharge = round((self.SQLread(1) * 100), 2)
             self.progressBar.setValue(int(self.BatteryCharge))

@@ -436,7 +436,7 @@ for i in range(len(time)):
 
     cursor.execute("INSERT INTO sensor_logs (id, sensor_id, message, timestamp) VALUES (?, ?, ?, ?)",
 
-                   (id, 4, 'No error 4', timestamp2))
+                   (id, 4, 'Charging', timestamp2))
 
     #conn.commit()
 

@@ -415,7 +415,35 @@ def computeRange(speedOfInterest, consumptionRate, rangeEstArray):
   
     # Return the array of range estimates with the new update at the end
     return rangeEstArray
-        
+    
+def kalman_filter_update_numpy(array, iteration, P, process_variance=5e-4, measurement_variance=1):
+
+    """
+    A function to filter/ remove noise from the input sensor data using a Kalman filter.
+    The dataframe is inputted containing all sensor data. dLabel allows the type of data to be
+    specified. P is regularly updated and represents the process variance. K, the Kalman gain is
+    computed and the the difference between the 'prediction' and measured value is multiplied by the
+    gain to update the prediction.The new 'filtered' value is appended to the data frame and this is returned
+    along with the updated process variance.
+
+    """
+
+    # if insufficient data is available, initialise predicted value and process variance such that the function works
+    if (iteration == 0) or (iteration == 1):
+         x_pred = 0
+         P = 1
+    else:
+        x_pred = array[-2]
+
+    # Follow Kalman filter steps to predict next sensor value   
+    P_pred = P + process_variance
+    K = P_pred / (P_pred + measurement_variance)
+    x_est = x_pred + K * (array[-1] - x_pred) 
+    P = (1 - K) * P_pred
+    # Append filtered value to data frame
+    array[-1] = x_est
+
+    return array, P
 
 # Now the main scheduled script
 if __name__ == "__main__":    
@@ -488,6 +516,7 @@ if __name__ == "__main__":
     P7 = 0
     P8 = 0
     P9 = 0
+    P10 = 0
     # Create the empty data frame for sensor data
     dataStructure = newDataStruct()
     # Crete a separate data frame for solar power data
@@ -708,6 +737,8 @@ if __name__ == "__main__":
         slowSpeedRange = computeRange(slowSpeed, slowSpeedPowerConsumption, slowSpeedRange)
         highSpeedRange= computeRange(highSpeed, highSpeedPowerConsumption, highSpeedRange)
         
+
+        currentSpeedRange, P10 = kalman_filter_update_numpy(currentSpeedRange, iteration, P10)
         # The range estimates above are in the form of an array; now access the ltest value in the array
         csRange = currentSpeedRange[-1]
         ssRange = slowSpeedRange[-1]
@@ -760,7 +791,7 @@ if __name__ == "__main__":
         # If a realistic secondary range estimate exists, that is based on more than 15 data points recorded at that speed, appraise the ML based range estiamtes
         
         # Start with slow speed esitmate
-        if (~(rangeEstSS == 999999)) and (SOCcount[slowSpdIdx] > 15):
+        if (np.logical_not(rangeEstSS == 999999)) and (SOCcount[slowSpdIdx] > 15):
             # If the absolute difference is less than 20%, take average of observed data based range, and ML based range
             if (abs(ssRange - rangeEstSS)/rangeEstSS)<0.2:
                 ssRange = (ssRange + rangeEstSS)/2
@@ -771,7 +802,7 @@ if __name__ == "__main__":
                 print('completely adjusted')
                 
         # Next, look at the current speed estimate
-        if (~(rangeEstCS == 999999)) and (SOCcount[currentSpdIdx] > 15):
+        if (np.logical_not(rangeEstCS == 999999)) and (SOCcount[currentSpdIdx] > 15):
              # If the absolute difference is less than 20%, take average of observed data based range, and ML based range
             if (abs(csRange - rangeEstCS)/rangeEstCS)<0.2:
                 csRange = (csRange + rangeEstCS)/2
@@ -782,7 +813,7 @@ if __name__ == "__main__":
                 print('completely adjusted')
             
         # And finally, the high speed estiate
-        if (~(rangeEstHS == 999999)) and (SOCcount[highSpdIdx] > 15):
+        if (np.logical_not(rangeEstHS == 999999)) and (SOCcount[highSpdIdx] > 15):
              # If the absolute difference is less than 20%, take average of observed data based range, and ML based range
             if (abs(hsRange - rangeEstHS)/rangeEstHS)<0.2:
                 hsRange = (hsRange + rangeEstHS)/2
