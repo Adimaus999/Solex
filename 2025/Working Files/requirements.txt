@@ -1,0 +1,14 @@
+numpy
+pandas
+xgboost
+scikit-learn
+sqlalchemy
+pyqt6
+pyqt6-webengine
+pyqtgraph
+psutil
+requests
+serial
+sqlite3
+multiprocessing
+logging
