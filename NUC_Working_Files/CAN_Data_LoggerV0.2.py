@@ -360,56 +360,59 @@ class UsbCanAdapter:
 
     # Function to handle battery data and insert into the database
     def battery_data(self,data_bits):
-        # Initialize alarm lists
-        alarm1 = []
-        alarm2 = []
+        try:    
+            # Initialize alarm lists
+            alarm1 = []
+            alarm2 = []
 
-        # Extract parts from data_bits
-        part1 = int(data_bits.get("Bit_4", "0"), 16)
-        part2 = int(data_bits.get("Bit_5", "0"), 16)
-        part3 = int(data_bits.get("Bit_6", "0"), 16)
-        part4 = int(data_bits.get("Bit_7", "0"), 16)
+            # Extract parts from data_bits
+            part1 = int(data_bits.get("Bit_4", "0"), 16)
+            part2 = int(data_bits.get("Bit_5", "0"), 16)
+            part3 = int(data_bits.get("Bit_6", "0"), 16)
+            part4 = int(data_bits.get("Bit_7", "0"), 16)
 
-        # Check for alarms in part1
-        if part1 & 0x80: alarm1.append("Pack low-voltage alarm")
-        if part1 & 0x20: alarm1.append("Over-temperature protection during discharge")
-        if part1 & 0x10: alarm1.append("Overload protection")
-        if part1 & 0x02: alarm1.append("Cell low voltage alarm")
+            # Check for alarms in part1
+            if part1 & 0x80: alarm1.append("Pack low-voltage alarm")
+            if part1 & 0x20: alarm1.append("Over-temperature protection during discharge")
+            if part1 & 0x10: alarm1.append("Overload protection")
+            if part1 & 0x02: alarm1.append("Cell low voltage alarm")
 
-        # Check for alarms in part2
-        if part2 & 0x40: alarm2.append("Over-current alarm during discharge")
-        if part2 & 0x20: alarm2.append("Pack under-voltage protection")
-        if part2 & 0x10: alarm2.append("Cell under-voltage protection")
-        if part2 & 0x02: alarm2.append("Over-temperature alarm")
+            # Check for alarms in part2
+            if part2 & 0x40: alarm2.append("Over-current alarm during discharge")
+            if part2 & 0x20: alarm2.append("Pack under-voltage protection")
+            if part2 & 0x10: alarm2.append("Cell under-voltage protection")
+            if part2 & 0x02: alarm2.append("Over-temperature alarm")
 
-        # Status conditions
-        status = []
-        if part3 & 0x40: status.append("Fully charged (SOC 100%)")
-        if part3 & 0x20: status.append("Heating-element ON")
-        if part3 & 0x04: status.append("Discharge current detected")
-        if part3 & 0x02: status.append("Charging current detected")
+            # Status conditions
+            status = []
+            if part3 & 0x40: status.append("Fully charged (SOC 100%)")
+            if part3 & 0x20: status.append("Heating-element ON")
+            if part3 & 0x04: status.append("Discharge current detected")
+            if part3 & 0x02: status.append("Charging current detected")
 
-        # Convert lists to string
-        alarm1_str = ", ".join(alarm1) if alarm1 else "No alarms"
-        alarm2_str = ", ".join(alarm2) if alarm2 else "No alarms"
-        status_str = ", ".join(status) if status else "No status"
+            # Convert lists to string
+            alarm1_str = ", ".join(alarm1) if alarm1 else "No alarms"
+            alarm2_str = ", ".join(alarm2) if alarm2 else "No alarms"
+            status_str = ", ".join(status) if status else "No status"
 
-        # SOC
-        soc = part4
+            # SOC
+            soc = part4
 
-        # Insert data into the database
-        try:
-            # Insert SOC
-            self.insert_sensor_data("battery_soc", soc)
+            # Insert data into the database
+            try:
+                # Insert SOC
+                self.insert_sensor_data("battery_soc", soc)
 
-            # Insert alarms
-            self.insert_sensor_log("battery_alarm1", alarm1_str)
-            self.insert_sensor_log("battery_alarm2", alarm2_str)
+                # Insert alarms
+                self.insert_sensor_log("battery_alarm1", alarm1_str)
+                self.insert_sensor_log("battery_alarm2", alarm2_str)
 
-            # Insert status
-            self.insert_sensor_log("battery_status", status_str)
+                # Insert status
+                self.insert_sensor_log("battery_status", status_str)
 
-            print("Battery Data & Status Inserted into Database")
+                print("Battery Data & Status Inserted into Database")
+            except Exception as e:
+                print(f"Error inserting battery data: {e}")
         except Exception as e:
             print(f"Error inserting battery data: {e}")
 
@@ -420,28 +423,33 @@ class UsbCanAdapter:
 
     # Function to handle temperature data
     def temperature_voltage(self,data_bits):
-        temperature = [] 
-        battery_voltage = []
-        # Extract and combine parts from data_bits for temperature
-        temp_to_convert = data_bits.get("Bit_0", "0") + data_bits.get("Bit_1", "0") + data_bits.get("Bit_2", "0")
-        temperature = int(temp_to_convert, 16)/1000
-
-        # Extract and combine parts from data_bits for voltage
-        voltage_to_convert = data_bits.get("Bit_3", "0") + data_bits.get("Bit_4", "0") + data_bits.get("Bit_5", "0")
-        battery_voltage = int(voltage_to_convert, 16)/1000
-
-
-        self.battery_voltage = battery_voltage
-
         try:
-            self.insert_sensor_data("temperature", temperature)
-            self.insert_sensor_data("battery_voltage", battery_voltage)
-            print("Temperature Inserted into Database")
+            print(data_bits)
+            temperature = [] 
+            battery_voltage = []
+            # Extract and combine parts from data_bits for temperature
+            temp_to_convert = data_bits.get("Bit_0", "0") + data_bits.get("Bit_1", "0") + data_bits.get("Bit_2", "0")
+            temperature = int(temp_to_convert, 16)/1000
+
+            # Extract and combine parts from data_bits for voltage
+            voltage_to_convert =  data_bits.get("Bit_4", "0") + data_bits.get("Bit_5", "0")
+            battery_voltage = int(voltage_to_convert, 16)/1000
+
+
+            self.battery_voltage = battery_voltage
+
+            try:
+                self.insert_sensor_data("temperature", temperature)
+                self.insert_sensor_data("battery_voltage", battery_voltage)
+                print("Temperature Inserted into Database")
+            except Exception as e:
+                print(f"Error inserting GPS velocity data: {e}")
+
         except Exception as e:
-            print(f"Error inserting GPS velocity data: {e}")
+            print(f"Error inserting battery power data: {e}")
     
     def motor_aux_solar(self,data_bits):
-        print(data_bits)
+
         try:
             motor_current = []
             aux_current = []
@@ -454,7 +462,7 @@ class UsbCanAdapter:
             # Extract and combine parts from data_bits for auxiliary current
             ac_to_convert = data_bits.get("Bit_3", "0") + data_bits.get("Bit_4", "0") 
             aux_current = int(ac_to_convert, 16) / 1000
-            print("aux_to_convert",ac_to_convert)
+    
             # Extract and combine parts from data_bits for solar current
             sc_to_convert = data_bits.get("Bit_5", "0") + data_bits.get("Bit_6", "0")
             solar_current = int(sc_to_convert, 16) / 1000
@@ -688,7 +696,7 @@ class UsbCanAdapter:
             "0010": self.temperature_voltage,
             "0020": self.motor_aux_solar,
         }
-        print(frame_id)
+        
         # Call the appropriate function based on frame ID
         if frame_id in frame_id_to_function:
             frame_id_to_function[frame_id](data_bits)
@@ -705,17 +713,24 @@ class UsbCanAdapter:
         Initializes the adapter, sets the CAN settings, and enters the data frame receiving loop.
         Sends the number 99 to the CAN bus every 5 seconds and injects a frame.
         """
-        signal.signal(signal.SIGTERM, self.sigterm)
-        signal.signal(signal.SIGINT, self.sigterm)
-        self.adapter_init()  # Initialize the adapter
-        if self.serial_device is None:
-            sys.exit(1)
-        
-        self.command_settings()  # Configure the CAN settings
-        
-        # Start dumping data frames (default behavior)
-        while True:
-            self.dump_data_frames()
+        try:
+            signal.signal(signal.SIGTERM, self.sigterm)
+            signal.signal(signal.SIGINT, self.sigterm)
+            self.adapter_init()  # Initialize the adapter
+            if self.serial_device is None:
+                sys.exit(1)
+            
+            self.command_settings()  # Configure the CAN settings
+            
+            # Start dumping data frames (default behavior)
+        except Exception as e:
+            print(f"Error in main loop: {e}")
+        try:
+            while True:
+                self.dump_data_frames()
+        except Exception as e:
+            print(f"Error in main loop: {e}")
+            
 
 
 

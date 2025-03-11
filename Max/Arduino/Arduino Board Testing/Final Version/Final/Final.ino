@@ -13,13 +13,13 @@ OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 
 // Define the reference voltage constant
-const float VREF = 4.679;
+const float VREF = 4.54;
 
 // Define resistor values for the voltage divider
 const float R1 = 226500; // 220k ohms
 const float R2 = 12080;  // 12k ohms
 
-const float Aux_Coils = 15;
+const float Aux_Coils = 10;
 const float Solar_Coils = 2;
 
 // Define the delay between cycles in milliseconds
@@ -105,15 +105,17 @@ void loop() {
     float Current_Sensor_Solar_Voltage = sensorValueA4 * (VREF / 1023.0);
 
     // Calculate battery voltage and currents
-    float Battery_Voltage = Battery_Voltage_Sensor * (R1 + R2) / R2;
+    float Battery_Voltage_Temp = Battery_Voltage_Sensor * (R1 + R2) / R2;
+    float Battery_Voltage = Battery_Voltage_Temp + ((Battery_Voltage_Temp * 0.0141) + 0.058);
 
-    float Current_Motor = ((Current_Sensor_Motor_Voltage - Current_Sensor_VREF) * 200) / 1.25;
+    float Current_Motor_Temp = ((Current_Sensor_Motor_Voltage - Current_Sensor_VREF) * 200) / 1.25;
+    float Current_Motor = Current_Motor_Temp + ((Current_Motor_Temp * 0.0283) -  0.2982);
 
     float Current_Auxiliary_Temp = ((Current_Sensor_Auxiliary_Voltage - Current_Sensor_VREF) * 200) / 1.25;
-    float Current_Auxiliary = Current_Auxiliary_Temp + ((Current_Auxiliary_Temp * 0.0076) -  0.522);
+    float Current_Auxiliary = Current_Auxiliary_Temp + ((Current_Auxiliary_Temp * 0.0102) -  0.266);
     
     float Current_Solar_Temp = ((Current_Sensor_Solar_Voltage - Current_Sensor_VREF) * 200) / 1.25;
-    float Current_Solar = Current_Solar_Temp + ((Current_Solar_Temp * 0.0193) - 0.212);
+    float Current_Solar = Current_Solar_Temp + ((Current_Solar_Temp * 0.0351) - 0.2808);
 
     // Update total values by subtracting the oldest reading and adding the new reading
     totalCurrentSensorVREF -= currentSensorVREFReadings[readIndex];
