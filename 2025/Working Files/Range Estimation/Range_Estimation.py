@@ -25,7 +25,7 @@ from datetime import datetime
 # Functions are defined below
 
 # A function to read the latest SQL database data based on a column named 'timestamp'.
-def SQLread(sensor_id, db_path="sensors1.db", table_name="sensor_data"):
+def SQLread(sensor_id, db_path="C:/SOLEX/Solex/2025/Working Files/Database/SoleX_Database.db", table_name="sensor_data"):
     """
     Fucntion to extract most recent sensor data from an SQL database according to the timestamp column. The function 
     returns the sensor data sepcified according to the input 'sensor_id'. If there is any error, the function returns

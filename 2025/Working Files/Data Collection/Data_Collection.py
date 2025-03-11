@@ -16,7 +16,7 @@ import math
 import subprocess
 
 # Database configuration
-DB_PATH = "new_sensors.db"
+DB_PATH = "C:/SOLEX/Solex/2025/Working Files/Database/SoleX_Database2.db"
 ENGINE = create_engine(f"sqlite:///{DB_PATH}", echo=False)
 Session = sessionmaker(bind=ENGINE) 
 session = Session()
@@ -101,7 +101,7 @@ def initialize_sensors():
 
 initialize_sensors()
 
-subprocess.Popen(["powershell", "-NoExit", "-Command", "python GUI_Script.py"])
+subprocess.Popen(["powershell", "-NoExit", "-Command", "python C:/SOLEX/Solex/2025\Working Files/UI/User_Interface.py.py"])
 
 # Enum for CAN Bus speed (only 250000 is defined here)
 class CANUSB_SPEED(Enum):

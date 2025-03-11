@@ -1,10 +1,3 @@
-# Import necessary modules
-import time
-import numpy as np
-import os
-import requests
-import datetime
-from datetime import datetime
 from PyQt6 import uic
 from PyQt6.QtWidgets import QApplication, QMainWindow, QDial, QLabel, QProgressBar, QPushButton, QTextEdit, QWidget, QVBoxLayout, QSizePolicy, QLineEdit
 from PyQt6.QtCore import QTimer, QUrl, QMetaObject, Qt, Q_ARG, QEvent, QObject
@@ -12,17 +5,24 @@ from PyQt6.QtWebEngineWidgets import QWebEngineView
 import pyqtgraph as pg
 from collections import deque
 import sys
+import subprocess
+import numpy as np
+import sqlite3
 import socket
+import math
 import signal
+from datetime import datetime
 import threading
-from MessageWindow import MessageWindow  # Ensure the MessageWindow class is imported
+import os
+import requests
+from Message_Window import MessageWindow  # Ensure the MessageWindow class is imported
 import subprocess
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
 
-ADAFRUIT_AIO_USERNAME = "kyebarwell"
-ADAFRUIT_AIO_KEY = "aio_tqjd74FoxeVXDrFdzCIij5wqJ6Kf"
+ADAFRUIT_AIO_USERNAME = "SolarBoatExeter"
+ADAFRUIT_AIO_KEY = "aio_TJII20zIAcuDb7d3TULIPmtmdpKA"
 ADAFRUIT_FEED_KEY = "battery-soc"
 ADAFRUIT_FEED_KEYS = {
     "battery": "battery-soc",
@@ -30,7 +30,8 @@ ADAFRUIT_FEED_KEYS = {
     "range": "range",
     "range_fast": "range-fast",
     "range_slow": "range-slow",
-    "map": "map"
+    "map": "map",
+    "optimal-speed": "optimal-speed"
 }
 
 class RemainingWindow(QMainWindow):
@@ -83,6 +84,43 @@ class RemainingWindow(QMainWindow):
     def update_remaining(self):
         if self.remaining_input is not None:
             try:
+                # Connect to an existing database or create a new one if it doesn't exist
+                conn = sqlite3.connect('C:/SOLEX/Solex/2025/Working Files/Database/SoleX_Database.db')
+                cursor = conn.cursor()
+
+                # Check if the table exists
+
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='race_length'")
+                table_exists = cursor.fetchone()
+
+                # Create the table if it does not exist
+
+                if not table_exists:
+                    create_table_query = '''
+                    CREATE TABLE IF NOT EXISTS race_length (
+                        timestamp TEXT,
+                        raceLength REAL
+                    )
+
+                    '''
+                    cursor.execute(create_table_query)
+                    print("Table created successfully.")
+                else:
+                    print("Table already exists.")
+
+                # Commit the changes and close the connection
+                conn.commit()
+                conn.close()
+
+                conn = sqlite3.connect('sensors1.db')
+                cursor = conn.cursor()
+
+                insert_query = '''
+                INSERT INTO race_length (timestamp, raceLength) VALUES (?, ?)'''
+                cursor.execute(insert_query, (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), int(self.remaining_input.text())))
+                conn.commit()
+                conn.close()
+
                 new_remaining = int(self.remaining_input.text())
                 assert new_remaining >= 0, "Remaining value cannot be negative"
                 self.main_window.Remaining = new_remaining
@@ -92,10 +130,45 @@ class RemainingWindow(QMainWindow):
                 self.close_osk()
                 self.close()
                 self.main_window.show()
+
+                subprocess.Popen(["powershell", "-NoExit", "-Command", "pthyon C:/SOLEX/Solex/2025/Working Files/Range Estimation/Range_Estimation.py"])
+
             except ValueError:
                 logging.info("Invalid input for Remaining")
             except AssertionError as e:
                 logging.error(f"Assertion error: {e}")
+    
+    def SQLread(self, sensor_id, db_path="sensors1.db", table_name="sensor_data"):
+                """
+                Function to extract most recent sensor data from an SQL database according to the timestamp column. The function 
+                returns the sensor data sepcified according to the input 'sensor_id'. If there is any error, the function returns
+                a nan.
+                """
+                try:
+                    conn = sqlite3.connect(db_path)
+                    cursor = conn.cursor()
+
+                    query = f"""
+                    SELECT value FROM {table_name} 
+                    WHERE sensor_id = ? 
+                    ORDER BY timestamp DESC 
+                    LIMIT 1
+                    """
+                    
+                    cursor.execute(query, (sensor_id,))
+                    result = cursor.fetchone()
+
+                    conn.close()
+
+                    # Return nan if not found
+                    return result[0] if result and result[0] is not None else np.nan
+
+                except sqlite3.Error as e:
+                    print(f"Database error: {e}")
+                    return np.nan  
+                except Exception as e:
+                    print(f"Error: {e}")
+                    return np.nan
 
     def return_to_main_window(self):
         self.close()
@@ -106,9 +179,9 @@ class BatteryTimePlotWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         try:
-            uic.loadUi("BatteryTimePlot.ui", self)  # Load the BatteryTimePlot UI file
+            uic.loadUi("Battery_Time_Plot.ui", self)  # Load the BatteryTimePlot UI file
         except Exception as e:
-            logging.error(f"Failed to load BatteryTimePlot.ui: {e}")
+            logging.error(f"Failed to load Battery_Time_Plot.ui: {e}")
             raise
         self.plot_widget = self.findChild(QWidget, 'widget')
         self.plot_layout = QVBoxLayout(self.plot_widget)
@@ -194,10 +267,10 @@ class SecondWindow(QMainWindow):
         self.main_window = main_window
         self.battery_time_plot_window = battery_time_plot_window  # Store the passed instance
         try:
-            uic.loadUi("Diagnostics Panel.ui", self)  # Load the second UI file
+            uic.loadUi("Diagnostics_Panel.ui", self)  # Load the second UI file
             logging.info("Second window initialized")
         except Exception as e:
-            logging.error(f"Failed to load Diagnostics Panel.ui: {e}")
+            logging.error(f"Failed to load Diagnostics_Panel.ui: {e}")
 
         # Find and set the QTextEdit widgets
         self.set_text_edit('textEdit', battery_charge)
@@ -238,6 +311,131 @@ class SecondWindow(QMainWindow):
         self.pushButton_6 = self.findChild(QPushButton, 'pushButton_6')
         assert self.pushButton_6 is not None, "QPushButton_6 not found!"
         self.pushButton_6.clicked.connect(self.open_battery_time_plot)
+
+    def update_values_from_db(self):
+        try:
+            self.BatteryCharge = round((self.SQLread(1) * 100), 2)
+            self.BatteryError = str(self.SQLreadmessage(2)) + str(' ') + str(self.SQLreadmessage(3))
+            self.BatteryStatus = self.SQLreadmessage(4)
+            self.MotorCurrent = round(self.SQLread(18), 2)
+            self.MotorVoltage = round(self.SQLread(19), 2)
+            self.Temperature = round(self.SQLread(16), 2)
+            self.AuxilliaryVoltage = round(self.SQLread(25), 2)
+            self.SolarCurrent = round(self.SQLread(21), 2)
+            self.SolarVoltage = round(self.SQLread(22), 2)
+            self.SolarPower = round(self.SQLread(20), 2)
+            self.Latitude = round(self.SQLread(5), 2)
+            self.Longitude = round(self.SQLread(6), 2)
+            self.Speed = round(self.SQLread(10), 2)
+            self.Acceleration = round(self.SQLread(14), 2)
+            self.MotorPower = round(self.SQLread(17), 2)
+            self.AuxilliaryPower = round(self.SQLread(23), 2)
+            self.AuxilliaryCurrent = round(self.SQLread(24), 2)
+
+            # Getting remaining distance
+            conn = sqlite3.connect('sensors1.db')
+            cursor = conn.cursor()
+            sqlquery = '''SELECT raceLength FROM race_length ORDER BY datetime(timestamp) DESC LIMIT 1'''
+            cursor.execute(sqlquery)
+            initial_race_length = round((cursor.fetchone()[0]), 2)
+            conn.close()
+            self.Remaining = initial_race_length - self.SQLread(30)
+
+            # Getting slow speed
+            conn = sqlite3.connect('sensors1.db')
+            cursor = conn.cursor()
+            sqlquery = '''SELECT ssRange FROM range_estimates ORDER BY datetime(timestamp) DESC LIMIT 1'''
+            cursor.execute(sqlquery)
+            self.RangeSlow = round((cursor.fetchone()[0]), 2)
+            conn.close()
+
+            # Getting range
+            conn = sqlite3.connect('sensors1.db')
+            cursor = conn.cursor()
+            sqlquery = '''SELECT csRange FROM range_estimates ORDER BY datetime(timestamp) DESC LIMIT 1'''
+            cursor.execute(sqlquery)
+            self.Range = round((cursor.fetchone()[0]), 2)
+            conn.close()
+
+            # Getting fast speed
+            conn = sqlite3.connect('sensors1.db')
+            cursor = conn.cursor()
+            sqlquery = '''SELECT hsRange FROM range_estimates ORDER BY datetime(timestamp) DESC LIMIT 1'''
+            cursor.execute(sqlquery)
+            self.RangeFast = round((cursor.fetchone()[0]), 2)
+            conn.close()
+
+            self.main_window.Remaining = self.Remaining
+            self.main_window.Range = self.Range
+            self.main_window.range_label.setText(f"{self.Range} km")
+            self.main_window.remaining_label.setText(f"{self.main_window.Remaining} km")
+
+            self.set_text_edit('textEdit', self.BatteryCharge)
+            self.set_text_edit('textEdit_3', self.BatteryError)
+            self.set_text_edit('textEdit_4', self.MotorCurrent)
+            self.set_text_edit('textEdit_5', self.MotorVoltage)
+            self.set_text_edit('textEdit_6', self.Temperature)
+            self.set_text_edit('textEdit_7', self.AuxilliaryVoltage)
+            self.set_text_edit('textEdit_8', self.SolarCurrent)
+            self.set_text_edit('textEdit_9', self.SolarVoltage)
+            self.set_text_edit('textEdit_10', self.SolarPower)
+            self.set_text_edit('textEdit_11', self.Latitude)
+            self.set_text_edit('textEdit_12', self.Longitude)
+            self.set_text_edit('textEdit_13', self.Speed)
+            self.set_text_edit('textEdit_14', self.Acceleration)
+            self.set_text_edit('textEdit_15', self.Range)
+            self.set_text_edit('textEdit_16', self.Remaining)
+            self.set_text_edit('textEdit_17', self.MotorPower)
+            self.set_text_edit('textEdit_18', self.AuxilliaryPower)
+            self.set_text_edit('textEdit_19', self.AuxilliaryCurrent)
+            self.set_text_edit('textEdit_20', self.RangeSlow)
+            self.set_text_edit('textEdit_21', self.RangeFast)
+            self.update_button_colors(self.BatteryStatus)
+            logging.info("Second window values updated from database")
+        except Exception as e:
+            logging.error(f"Error updating second window values from database: {e}")
+    
+    def SQLread(self, sensor_id, db_path="sensors1.db", table_name="sensor_data"):
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            query = f"""
+            SELECT value FROM {table_name} 
+            WHERE sensor_id = ? 
+            ORDER BY timestamp DESC 
+            LIMIT 1
+            """
+            cursor.execute(query, (sensor_id,))
+            result = cursor.fetchone()
+            conn.close()
+            return result[0] if result and result[0] is not None else np.nan
+        except sqlite3.Error as e:
+            logging.error(f"Database error: {e}")
+            return np.nan  
+        except Exception as e:
+            logging.error(f"Error: {e}")
+            return np.nan
+
+    def SQLreadmessage(self, sensor_id, db_path="sensors1.db", table_name="sensor_logs"):
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            query = f"""
+            SELECT message FROM {table_name} 
+            WHERE sensor_id = ? 
+            ORDER BY timestamp DESC 
+            LIMIT 1
+            """
+            cursor.execute(query, (sensor_id,))
+            result = cursor.fetchone()
+            conn.close()
+            return result[0] if result and result[0] is not None else 'No data'
+        except sqlite3.Error as e:
+            logging.error(f"Database error: {e}")
+            return 'No data' 
+        except Exception as e:
+            logging.error(f"Error: {e}")
+            return 'No data'
 
     def open_battery_time_plot(self):
         try:
@@ -311,10 +509,22 @@ class MyApp(QMainWindow):
         super().__init__()
         self.lock = threading.Lock()
         try:
-            uic.loadUi("TestGUI.ui", self)  # Load the UI file
+            uic.loadUi("Main_Window.ui", self)  # Load the UI file
         except Exception as e:
-            logging.error(f"Failed to load TestGUI.ui: {e}")
+            logging.error(f"Failed to load Main_Window.ui: {e}")
             raise
+
+        # Set up a QTimer to update values from the database periodically
+        self.update_timer = QTimer(self)
+        self.update_timer.timeout.connect(self.update_values_from_db)
+        self.update_timer.start(5000)  # Update every 5000 milliseconds (5 seconds)
+        logging.info("QTimer started to update values from database every 5 seconds")
+
+        # Set up a QTimer to update values in the second window periodically
+        self.second_window_update_timer = QTimer(self)
+        self.second_window_update_timer.timeout.connect(self.update_second_window_values)
+        self.second_window_update_timer.start(5000)  # Update every 5000 milliseconds (5 seconds)
+        logging.info("QTimer started to update second window values every 5 seconds")
 
         # Find the QDial widget
         self.dial = self.findChild(QDial, 'dial') 
@@ -322,10 +532,11 @@ class MyApp(QMainWindow):
         self.dial.setMaximum(20)  # Set the maximum value of the dial to 20
 
         # Initialize the Speed variable
-        self.Speed = 0
+        self.Speed = round(self.SQLread(10), 2)
+        print(self.Speed)
 
         # Set the initial value of the dial to the Speed value
-        self.dial.setValue(self.Speed)
+        self.dial.setValue(int(round(self.Speed)))
 
         # Find the QLabel widget for Speed
         self.label = self.findChild(QLabel, 'label_20')  
@@ -355,15 +566,26 @@ class MyApp(QMainWindow):
         self.progressBar.setMaximum(100)  # Set the maximum value of the progress bar to 100
 
         # Initialize the BatteryCharge variable
-        self.BatteryCharge = 0
-        self.progressBar.setValue(self.BatteryCharge)
+        self.BatteryCharge = round((self.SQLread(1) * 100), 2)
+        self.progressBar.setValue(int(self.BatteryCharge))
 
         # Initialize the Range variable
-        self.Range = 0
+        conn = sqlite3.connect('sensors1.db')
+        cursor = conn.cursor()
+        sqlquery = '''SELECT csRange FROM range_estimates ORDER BY datetime(timestamp) DESC LIMIT 1'''
+        cursor.execute(sqlquery)
+        self.Range = round((cursor.fetchone()[0]), 2)
+        conn.close()
         logging.info(f"Initial Range: {self.Range}")
 
         # Initialize the Remaining variable
-        self.Remaining = 0
+        conn = sqlite3.connect('sensors1.db')
+        cursor = conn.cursor()
+        sqlquery = '''SELECT raceLength FROM race_length ORDER BY datetime(timestamp) DESC LIMIT 1'''
+        cursor.execute(sqlquery)
+        initial_race_length = cursor.fetchone()[0]
+        conn.close()
+        self.Remaining = initial_race_length - self.SQLread(30)
         logging.info(f"Initial Remaining: {self.Remaining}")
 
         # Find the QLabel widget for Range
@@ -384,56 +606,74 @@ class MyApp(QMainWindow):
         # Update the label to show the initial Remaining value
         self.range_label.setText(f"{self.Range} km")
 
-        # Initialize the BatteryError variable
-        self.BatteryError = "No Error"
+        self.BatteryError = str(self.SQLreadmessage(2)) + str(' ') + str(self.SQLreadmessage(3))
 
         # Initialize the BatteryStatus variable
-        self.BatteryStatus = "Discharging"  # Example status, you can change this as needed
+        self.BatteryStatus = self.SQLreadmessage(4) # Example status, you can change this as needed
 
         # Initialize the Current variable
-        self.MotorCurrent = 0  # Example value, you can change this as needed
+        self.MotorCurrent = round(self.SQLread(18), 2)  # Example value, you can change this as needed
 
         # Initialize the Voltage variable
-        self.MotorVoltage = 0  # Example value, you can change this as needed
+        self.MotorVoltage = round(self.SQLread(19), 2)  # Example value, you can change this as needed
 
         # Initialize the Temperature variable
-        self.Temperature = 0  # Example value, you can change this as needed
+        self.Temperature = round(self.SQLread(16), 2)  # Example value, you can change this as needed
 
         # Initialize the Throttle Position variable
-        self.AuxilliaryVoltage = 0  # Example value, you can change this as needed
+        self.AuxilliaryVoltage = round(self.SQLread(25), 2)  # Example value, you can change this as needed
 
         # Initialize the SolarCurrent variable
-        self.SolarCurrent = 0  # Example value, you can change this as needed
+        self.SolarCurrent = round(self.SQLread(21), 2)  # Example value, you can change this as needed
 
         # Initialize the SolarVoltage variable
-        self.SolarVoltage = 0  # Example value, you can change this as needed
+        self.SolarVoltage = round(self.SQLread(22), 2)  # Example value, you can change this as needed
 
         # Initialize the SolarPower variable
-        self.SolarPower = 0  # Example value, you can change this as needed
+        self.SolarPower = round(self.SQLread(20), 2)  # Example value, you can change this as needed
 
         # Initialize the Latitude variable
-        self.Latitude = 0  # Example value, you can change this as needed
+        self.Latitude = round(self.SQLread(5), 2)  # Example value, you can change this as needed
 
         # Initialize the Longitude variable
-        self.Longitude = 0  # Example value, you can change this as needed
+        self.Longitude = round(self.SQLread(6), 2)  # Example value, you can change this as needed
 
         # Initialize the Acceleration variable
-        self.Acceleration = 0  # Example value, you can change this as needed
+        self.Acceleration = round(self.SQLread(14), 2)  # Example value, you can change this as needed
 
         # Initialize the Motor Power variable
-        self.MotorPower = 0  # Example value, you can change this as needed
+        self.MotorPower = round(self.SQLread(17), 2)  # Example value, you can change this as needed
 
         # Initialize the Auxilliary Power variable
-        self.AuxilliaryPower = 0  # Example value, you can change this as needed
+        self.AuxilliaryPower = round(self.SQLread(23), 2)  # Example value, you can change this as needed
 
         # Initialize the Auxilliary Current variable
-        self.AuxilliaryCurrent = 0  # Example value, you can change this as needed
+        self.AuxilliaryCurrent = round(self.SQLread(24), 2)  # Example value, you can change this as needed
 
         # Initialize the Range Slow variable
-        self.RangeSlow = 0  # Example value, you can change this as needed
+        conn = sqlite3.connect('sensors1.db')
+        cursor = conn.cursor()
+        sqlquery = '''SELECT ssRange FROM range_estimates ORDER BY datetime(timestamp) DESC LIMIT 1'''
+        cursor.execute(sqlquery)
+        self.RangeSlow = round((cursor.fetchone()[0]), 2)
+        conn.close()
 
         # Initialize the Range Fast variable
-        self.RangeFast = 0  # Example value, you can change this as needed
+        conn = sqlite3.connect('sensors1.db')
+        cursor = conn.cursor()
+        sqlquery = '''SELECT hsRange FROM range_estimates ORDER BY datetime(timestamp) DESC LIMIT 1'''
+        cursor.execute(sqlquery)
+        self.RangeFast = round((cursor.fetchone()[0]), 2)
+        conn.close()
+
+        # Initialise the optimal speed variable
+        conn = sqlite3.connect('sensors1.db')
+        cursor = conn.cursor()
+        sqlquery = '''SELECT optimalSpeed FROM range_estimates ORDER BY datetime(timestamp) DESC LIMIT 1'''
+        cursor.execute(sqlquery)
+        self.OptimalSpeed = round((cursor.fetchone()[0]), 2)
+        print(self.OptimalSpeed)
+        conn.close()
 
         # Find the QLabel widget for label_21
         self.label_21 = self.findChild(QLabel, 'label_21')  
@@ -474,6 +714,109 @@ class MyApp(QMainWindow):
 
         self.open_remaining_window()
 
+    def update_second_window_values(self):
+        if hasattr(self, 'second_window') and self.second_window.isVisible():
+            self.second_window.set_text_edit('textEdit', self.BatteryCharge)
+            self.second_window.set_text_edit('textEdit_3', self.BatteryError)
+            self.second_window.set_text_edit('textEdit_4', self.MotorCurrent)
+            self.second_window.set_text_edit('textEdit_5', self.MotorVoltage)
+            self.second_window.set_text_edit('textEdit_6', self.Temperature)
+            self.second_window.set_text_edit('textEdit_7', self.AuxilliaryVoltage)
+            self.second_window.set_text_edit('textEdit_8', self.SolarCurrent)
+            self.second_window.set_text_edit('textEdit_9', self.SolarVoltage)
+            self.second_window.set_text_edit('textEdit_10', self.SolarPower)
+            self.second_window.set_text_edit('textEdit_11', self.Latitude)
+            self.second_window.set_text_edit('textEdit_12', self.Longitude)
+            self.second_window.set_text_edit('textEdit_13', self.Speed)
+            self.second_window.set_text_edit('textEdit_14', self.Acceleration)
+            self.second_window.set_text_edit('textEdit_15', self.Range)
+            self.second_window.set_text_edit('textEdit_16', self.Remaining)
+            self.second_window.set_text_edit('textEdit_17', self.MotorPower)
+            self.second_window.set_text_edit('textEdit_18', self.AuxilliaryPower)
+            self.second_window.set_text_edit('textEdit_19', self.AuxilliaryCurrent)
+            self.second_window.set_text_edit('textEdit_20', self.RangeSlow)
+            self.second_window.set_text_edit('textEdit_21', self.RangeFast)
+            self.second_window.update_button_colors(self.BatteryStatus)
+            logging.info("Second window values updated from main window")
+
+    def update_values_from_db(self):
+        print("Updating values from database")
+        try:
+            self.Speed = round(self.SQLread(10), 2)
+            self.label.setText(f"{self.Speed} km/h")
+            self.dial.setValue(int(round(self.Speed)))
+
+            self.BatteryCharge = round((self.SQLread(1) * 100), 2)
+            self.progressBar.setValue(int(self.BatteryCharge))
+
+            self.BatteryError = str(self.SQLreadmessage(2)) + str(' ') + str(self.SQLreadmessage(3))
+            self.BatteryStatus = self.SQLreadmessage(4)
+            # Update button colors based on battery status
+            self.update_button_colors(self.BatteryStatus)
+
+            # Getting remaining distance
+            conn = sqlite3.connect('sensors1.db')
+            cursor = conn.cursor()
+            sqlquery = '''SELECT raceLength FROM race_length ORDER BY datetime(timestamp) DESC LIMIT 1'''
+            cursor.execute(sqlquery)
+            initial_race_length = cursor.fetchone()[0]
+            conn.close()
+            self.Remaining = round((initial_race_length - self.SQLread(30)), 2)
+            self.remaining_label.setText(f"{self.Remaining} km")
+
+            # Getting slow speed
+            conn = sqlite3.connect('sensors1.db')
+            cursor = conn.cursor()
+            sqlquery = '''SELECT ssRange FROM range_estimates ORDER BY datetime(timestamp) DESC LIMIT 1'''
+            cursor.execute(sqlquery)
+            self.RangeSlow = round((cursor.fetchone()[0]), 2)
+            conn.close()
+
+            # Getting range
+            conn = sqlite3.connect('sensors1.db')
+            cursor = conn.cursor()
+            sqlquery = '''SELECT csRange FROM range_estimates ORDER BY datetime(timestamp) DESC LIMIT 1'''
+            cursor.execute(sqlquery)
+            self.Range = round((cursor.fetchone()[0]), 2)
+            self.range_label.setText(f"{self.Range} km")
+            conn.close()
+
+            # Getting fast speed
+            conn = sqlite3.connect('sensors1.db')
+            cursor = conn.cursor()
+            sqlquery = '''SELECT hsRange FROM range_estimates ORDER BY datetime(timestamp) DESC LIMIT 1'''
+            cursor.execute(sqlquery)
+            self.RangeFast = round((cursor.fetchone()[0]), 2)
+            conn.close()
+
+            # Getting optimal speed
+            conn = sqlite3.connect('sensors1.db')
+            cursor = conn.cursor()
+            sqlquery = '''SELECT optimalSpeed FROM range_estimates ORDER BY datetime(timestamp) DESC LIMIT 1'''
+            cursor.execute(sqlquery)
+            self.OptimalSpeed = round((cursor.fetchone()[0]), 2)
+            print(self.OptimalSpeed)
+            conn.close()
+
+            self.MotorCurrent = round(self.SQLread(18), 2)
+            self.MotorVoltage = round(self.SQLread(19), 2)
+            self.Temperature = round(self.SQLread(16), 2)
+            self.AuxilliaryVoltage = round(self.SQLread(25), 2)
+            self.SolarCurrent = round(self.SQLread(21), 2)
+            self.SolarVoltage = round(self.SQLread(22), 2)
+            self.SolarPower = round(self.SQLread(20), 2)
+            self.Latitude = round(self.SQLread(5), 2)
+            self.Longitude = round(self.SQLread(6), 2)
+            self.Acceleration = round(self.SQLread(14), 2)
+            self.MotorPower = round(self.SQLread(17), 2)
+            self.AuxilliaryPower = round(self.SQLread(23), 2)
+            self.AuxilliaryCurrent = round(self.SQLread(24), 2)
+
+            self.update_label_21_color()
+            logging.info("Values updated from database")
+        except Exception as e:
+                logging.error(f"Error updating values from database: {e}")
+
     def customEvent(self, event):
         if isinstance(event, ShowMessageEvent):
             self.show_message_window(event.message)
@@ -496,6 +839,70 @@ class MyApp(QMainWindow):
             else:
                 self.label_21.setStyleSheet("background-color: rgb(255, 0, 0); color: black;")
                 logging.info("label_21 color set to red")
+
+    def SQLreadmessage(self, sensor_id, db_path="sensors1.db", table_name="sensor_logs"):
+                """
+                Function to extract most recent sensor data from an SQL database according to the timestamp column. The function 
+                returns the sensor data sepcified according to the input 'sensor_id'. If there is any error, the function returns
+                a nan.
+                """
+                try:
+                    conn = sqlite3.connect(db_path)
+                    cursor = conn.cursor()
+
+                    query = f"""
+                    SELECT message FROM {table_name} 
+                    WHERE sensor_id = ? 
+                    ORDER BY timestamp DESC 
+                    LIMIT 1
+                    """
+                    
+                    cursor.execute(query, (sensor_id,))
+                    result = cursor.fetchone()
+
+                    conn.close()
+
+                    # Return nan if not found
+                    return result[0] if result and result[0] is not None else 'No data'
+
+                except sqlite3.Error as e:
+                    print(f"Database error: {e}")
+                    return 'No data' 
+                except Exception as e:
+                    print(f"Error: {e}")
+                    return 'No data'
+        
+    def SQLread(self, sensor_id, db_path="sensors1.db", table_name="sensor_data"):
+        """
+        Function to extract most recent sensor data from an SQL database according to the timestamp column. The function 
+        returns the sensor data sepcified according to the input 'sensor_id'. If there is any error, the function returns
+        a nan.
+        """
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            query = f"""
+            SELECT value FROM {table_name} 
+            WHERE sensor_id = ? 
+            ORDER BY timestamp DESC 
+            LIMIT 1
+            """
+            
+            cursor.execute(query, (sensor_id,))
+            result = cursor.fetchone()
+
+            conn.close()
+
+            # Return nan if not found
+            return result[0] if result and result[0] is not None else np.nan
+
+        except sqlite3.Error as e:
+            print(f"Database error: {e}")
+            return np.nan  
+        except Exception as e:
+            print(f"Error: {e}")
+            return np.nan
 
     def open_remaining_window(self):
         self.remaining_window = RemainingWindow(self)
@@ -529,6 +936,40 @@ class MyApp(QMainWindow):
         self.hide()
         self.update_label_21_color()  # Update the color when opening the second window
         logging.info("Opened second window")
+
+    def update_second_window_values(self):
+        if hasattr(self, 'second_window') and self.second_window.isVisible():
+            self.second_window.update_values_from_db()
+
+    def update_button_colors(self, battery_status):
+        try:
+            logging.info(f"Updating button colors for battery status: {battery_status}")
+            pushButton_1 = self.findChild(QPushButton, 'pushButton')
+            pushButton_2 = self.findChild(QPushButton, 'pushButton_2')
+            pushButton_3 = self.findChild(QPushButton, 'pushButton_3')
+
+            assert pushButton_1 is not None and pushButton_2 is not None and pushButton_3 is not None, "One or more push buttons not found!"
+
+            if battery_status == "Charging":
+                pushButton_1.setStyleSheet("background-color: rgb(0, 255, 16)")
+                pushButton_2.setStyleSheet("background-color: rgb(128, 128, 128)")
+                pushButton_3.setStyleSheet("background-color: rgb(128, 128, 128)")
+            elif battery_status == "Equilibrium":
+                pushButton_1.setStyleSheet("background-color: rgb(128, 128, 128)")
+                pushButton_2.setStyleSheet("background-color: rgb(0, 255, 16)")
+                pushButton_3.setStyleSheet("background-color: rgb(128, 128, 128)")
+            elif battery_status == "Discharging":
+                pushButton_1.setStyleSheet("background-color: rgb(128, 128, 128)")
+                pushButton_2.setStyleSheet("background-color: rgb(128, 128, 128)")
+                pushButton_3.setStyleSheet("background-color: rgb(0, 255, 16)")
+            else:
+                pushButton_1.setStyleSheet("background-color: rgb(128, 128, 128)")
+                pushButton_2.setStyleSheet("background-color: rgb(128, 128, 128)")
+                pushButton_3.setStyleSheet("background-color: rgb(128, 128, 128)")
+
+            logging.info(f"Battery status: {battery_status}, button colors updated")
+        except Exception as e:
+            logging.error(f"Error updating button colors: {e}")
 
     def send_to_opencpn(self, latitude, longitude, speed):
         logging.info(f"Sending latitude: {latitude}, longitude: {longitude}, speed: {speed} to OpenCPN")
@@ -577,7 +1018,8 @@ class MyApp(QMainWindow):
                 "range": self.Range,
                 "range_fast": self.RangeFast,
                 "range_slow": self.RangeSlow,
-                "map": f"{self.Latitude},{self.Longitude}"
+                "map": f"{self.Latitude},{self.Longitude}",
+                "optimal-speed": self.OptimalSpeed 
             }
         
             # Send regular data points
@@ -699,6 +1141,83 @@ def signal_handler(sig, frame):
     sys.exit(0)
 
 if __name__ == "__main__":
+    # Connect to an existing database or create a new one if it doesn't exist
+    conn = sqlite3.connect('sensors1.db')
+    cursor = conn.cursor()
+    
+    # Check if the table exists
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='range_estimates'")
+    table_exists = cursor.fetchone()
+    
+    # Create the table if it does not exist
+    if not table_exists:
+        create_table_query = '''
+        CREATE TABLE IF NOT EXISTS range_estimates (
+            timestamp TEXT,
+            ssRange REAL,
+            csRange REAL,
+            hsRange REAL,
+            optimalSpeed REAL
+        )
+        '''
+        cursor.execute(create_table_query)
+        print("Table created successfully.")
+    else:
+        print("Table already exists.")
+    
+    # Commit the changes and close the connection
+    conn.commit()
+
+    insert_query = '''
+        INSERT INTO range_estimates (timestamp, ssRange, csRange, hsRange, optimalSpeed)
+        VALUES (?, ?, ?, ?, ?)
+        '''
+
+    # Insert data into the table
+    cursor.execute(insert_query, (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 0, 0, 0, 0))
+
+     # Commit the changes and close the connection
+    conn.commit()
+
+    conn.close()
+
+    # Connect to an existing database or create a new one if it doesn't exist
+    conn = sqlite3.connect('sensors1.db')
+    cursor = conn.cursor()
+
+    # Check if the table exists
+
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='race_length'")
+    table_exists = cursor.fetchone()
+
+    # Create the table if it does not exist
+
+    if not table_exists:
+        create_table_query = '''
+        CREATE TABLE IF NOT EXISTS race_length (
+            timestamp TEXT,
+            raceLength REAL
+        )
+
+        '''
+        cursor.execute(create_table_query)
+        print("Table created successfully.")
+    else:
+        print("Table already exists.")
+
+    # Commit the changes and close the connection
+    conn.commit()
+    conn.close()
+
+    conn = sqlite3.connect('sensors1.db')
+    cursor = conn.cursor()
+
+    insert_query = '''
+    INSERT INTO race_length (timestamp, raceLength) VALUES (?, ?)'''
+    cursor.execute(insert_query, (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 0))
+    conn.commit()
+    conn.close()
+
     app = QApplication(sys.argv)
 
     # Start the local HTTP server in a separate thread to serve the HTML file

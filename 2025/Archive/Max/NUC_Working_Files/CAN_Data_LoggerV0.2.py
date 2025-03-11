@@ -16,7 +16,7 @@ import math
 import subprocess
 
 # Database configuration
-DB_PATH = "new_sensors.db"
+DB_PATH = "C:\SOLEX\Solex\2025\Archive\Max\NUC_Working_Files\new_sensors.db"
 ENGINE = create_engine(f"sqlite:///{DB_PATH}", echo=False)
 Session = sessionmaker(bind=ENGINE) 
 session = Session()
