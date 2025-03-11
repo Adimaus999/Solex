@@ -17,6 +17,19 @@ import multiprocessing
 import psutil
 import requests
 import datetime
+from PyQt6 import uic
+from PyQt6.QtWidgets import QApplication, QMainWindow, QDial, QLabel, QProgressBar, QPushButton, QTextEdit, QWidget, QVBoxLayout, QSizePolicy, QLineEdit
+from PyQt6.QtCore import QTimer, QUrl, QMetaObject, Qt, Q_ARG, QEvent, QObject
+from PyQt6.QtWebEngineWidgets import QWebEngineView
+import pyqtgraph as pg
+from collections import deque
+import sys
+import socket
+import signal
+import threading
+from MessageWindow import MessageWindow  # Ensure the MessageWindow class is imported
+import subprocess
+import logging
 
 # Set the working directory
 #os.chdir("C:/Users/YourUsername/Documents/MyProject")
@@ -24,7 +37,7 @@ import datetime
 # Functions are defined below
 
 # A function to read the latest SQL database data based on a column named 'timestamp'.
-def SQLread(sensor_id, db_path="sensors1.db", table_name="sensor_data"):
+def SQLread(sensor_id, db_path="sensors_log.db", table_name="sensor_data"):
     """
     Fucntion to extract most recent sensor data from an SQL database according to the timestamp column. The function 
     returns the sensor data sepcified according to the input 'sensor_id'. If there is any error, the function returns
@@ -431,7 +444,8 @@ if __name__ == "__main__":
     # Define an intial estimate for the solar efficiency
     initialSolarEfficiency = 0.2
     # Define the race length
-    approxRaceLength = 70 #km
+    obj = MyApp()
+    approxRaceLength = obj.Remaining #km
     # Define the refresh rate of the range estimation script
     interval = 1
     # Initialise the electrical system efficiency as 0, to be recomputed in the script
@@ -638,7 +652,7 @@ if __name__ == "__main__":
         # Extract solar data and append to solar data frame 
         
         # Solar current data from SQL database
-        solarDataStructure['solarCurrent'].iat[-1] = SQLread(24)
+        solarDataStructure['solarCurrent'].iat[-1] = SQLread(21)
         if np.isnan(solarDataStructure['solarCurrent'].iat[-1]):
             # If value is missing, interpolate
             solarDataStructure = interpolate_next_value(solarDataStructure, 'solarCurrent')
@@ -646,7 +660,7 @@ if __name__ == "__main__":
         solarDataStructure, P8 = kalman_filter_update(solarDataStructure,'solarCurrent',iteration,P8)
         
         # Solar voltage data from SQL
-        solarDataStructure['solarVoltage'].iat[-1] = SQLread(25)
+        solarDataStructure['solarVoltage'].iat[-1] = SQLread(22)
         if np.isnan(solarDataStructure['solarVoltage'].iat[-1]):
             # if value is missing, interpolate
             solarDataStructure = interpolate_next_value(solarDataStructure, 'solarVoltage')
@@ -757,7 +771,7 @@ if __name__ == "__main__":
         # Speed strategy optimisation: find the optimal speed to cross the finish line with very low SOC
         # Add a 7km contingency buffer to the calculation to leave approx. 10% charge level at the end of the race
         # Retrieve distance remaining from SQL
-        distanceRemaining = SQLread(29)+7
+        distanceRemaining = approxRaceLength-SQLread(30)+7
         #Initialise an array of zeros corresponding to the discrete speeds array used above
         # This will represent the range of the boat at each speed
         rangess = np.zeros(len(speedsRangeArray))
