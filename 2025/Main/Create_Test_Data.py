@@ -140,7 +140,7 @@ speed_noisy = speed + speed_noise
 
 speed_min, speed_max = 6, 12  # Given speed range
 
-current_min, current_max = 20, 100  # Assumed min/max battery current
+current_min, current_max = 10, 50  # Assumed min/max battery current
 
  
 
@@ -176,7 +176,7 @@ motor_current_noisy = np.clip(motor_current + motor_noise, 0, current_max)  # En
 
 # Battery capacity (in kWh) and initial SOC (100%)
 
-battery_capacity_kWh = 1.4 * 5
+battery_capacity_kWh =  (26.52*51.2)/1000
 
 initial_soc = 1.0  # 100% charge
 
@@ -496,7 +496,7 @@ for i in range(len(time)):
 
     cursor.execute("INSERT INTO sensor_data (id, sensor_id, value, timestamp) VALUES (?, ?, ?, ?)",
 
-                   (id, 10, speed[i], datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                   (id, 10, speed[i]/3.6, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
 
     #conn.commit()
 
