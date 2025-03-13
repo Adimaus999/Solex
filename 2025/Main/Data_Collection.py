@@ -106,7 +106,7 @@ class UsbCanAdapter:
 
     # Initializer method that sets up default values for the adapter
     def __init__(self):
-        self.device_port = "COM5"  # Hardcoded to COM3 for the serial device
+        self.device_port = "COM3"  # Hardcoded to COM3 for the serial device
         self.speed = CANUSB_SPEED.SPEED_250000  # Default CAN Bus speed
         self.baudrate = self.CANUSB_TTY_BAUD_RATE_DEFAULT  # Default baud rate for serial communication
         self.terminate_after = 0  # No automatic termination by default
@@ -294,7 +294,7 @@ class UsbCanAdapter:
 
 
 
-    def great_circle_distance(lat1, lon1, lat2, lon2):
+    def great_circle_distance(self, lat1, lon1, lat2, lon2):
         """
         Calculate the great-circle distance between two points on the Earth's surface.
         The input coordinates are in decimal degrees.
@@ -698,11 +698,12 @@ class UsbCanAdapter:
             # Start dumping data frames (default behavior)
         except Exception as e:
             print(f"Error in main loop: {e}")
-        try:
-            while True:
+        while True:
+            try:
+            
                 self.dump_data_frames()
-        except Exception as e:
-            print(f"Error in main loop: {e}")
+            except Exception as e:
+                print(f"Error in main loop: {e}")
             
 
 
@@ -744,7 +745,7 @@ if __name__ == "__main__":
     Base.metadata.create_all(ENGINE)
 
     initialize_sensors()
-
+    os.chdir(r"C:\SOLEX\Solex\2025\Main")
     subprocess.Popen(["powershell", "-NoExit", "-Command", "python GUI.py"])
     uca = UsbCanAdapter()  # Create an instance of the UsbCanAdapter class
     uca.main()  # Start the main function

@@ -5,7 +5,6 @@ from PyQt6.QtWebEngineWidgets import QWebEngineView
 import pyqtgraph as pg
 from collections import deque
 import sys
-import subprocess
 import numpy as np
 import sqlite3
 import socket
@@ -84,7 +83,7 @@ class RemainingWindow(QMainWindow):
     def open_osk(self):
         try:
             os.system('start osk')
-            logging.info("On-screen keyboard opened")
+            #logging.info("On-screen keyboard opened")
         except OSError as e:
             logging.error(f"OS error: {e}")
         except Exception as e:
@@ -93,7 +92,7 @@ class RemainingWindow(QMainWindow):
     def close_osk(self):
         try:
             os.system('taskkill /IM osk.exe /F')
-            logging.info("On-screen keyboard closed")
+            #logging.info("On-screen keyboard closed")
         except OSError as e:
             logging.error(f"OS error: {e}")
         except Exception as e:
@@ -144,7 +143,7 @@ class RemainingWindow(QMainWindow):
                 self.main_window.Remaining = new_remaining
                 self.main_window.remaining_label.setText(f"{self.main_window.Remaining} km")
                 self.main_window.update_label_21_color()
-                logging.info(f"Remaining updated to: {self.main_window.Remaining}")
+                #logging.info(f"Remaining updated to: {self.main_window.Remaining}")
                 self.close_osk()
                 self.close()
                 self.main_window.show()
@@ -152,7 +151,7 @@ class RemainingWindow(QMainWindow):
                 subprocess.Popen(["powershell", "-NoExit", "-Command", "python Range_Estimation.py"])
 
             except ValueError:
-                logging.info("Invalid input for Remaining")
+                logging.error("Invalid input for Remaining")
             except AssertionError as e:
                 logging.error(f"Assertion error: {e}")
     
@@ -286,7 +285,7 @@ class SecondWindow(QMainWindow):
         self.battery_time_plot_window = battery_time_plot_window  # Store the passed instance
         try:
             uic.loadUi("Diagnostics Panel.ui", self)  # Load the second UI file
-            logging.info("Second window initialized")
+            #logging.info("Second window initialized")
         except Exception as e:
             logging.error(f"Failed to load Diagnostics Panel.ui: {e}")
 
@@ -409,7 +408,7 @@ class SecondWindow(QMainWindow):
             self.set_text_edit('textEdit_20', self.RangeSlow)
             self.set_text_edit('textEdit_21', self.RangeFast)
             self.update_button_colors(self.BatteryStatus)
-            logging.info("Second window values updated from database")
+            #logging.info("Second window values updated from database")
         except Exception as e:
             logging.error(f"Error updating second window values from database: {e}")
     
@@ -471,7 +470,7 @@ class SecondWindow(QMainWindow):
 
     def update_button_colors(self, battery_status):
         try:
-            logging.info(f"Updating button colors for battery status: {battery_status}")
+            #logging.info(f"Updating button colors for battery status: {battery_status}")
             pushButton_1 = self.findChild(QPushButton, 'pushButton')
             pushButton_2 = self.findChild(QPushButton, 'pushButton_2')
             pushButton_3 = self.findChild(QPushButton, 'pushButton_3')
@@ -495,7 +494,7 @@ class SecondWindow(QMainWindow):
                 pushButton_2.setStyleSheet("background-color: rgb(128, 128, 128)")
                 pushButton_3.setStyleSheet("background-color: rgb(128, 128, 128)")
 
-            logging.info(f"Battery status: {battery_status}, button colors updated")
+            #logging.info(f"Battery status: {battery_status}, button colors updated")
         except Exception as e:
             logging.error(f"Error updating button colors: {e}")
 
@@ -513,7 +512,7 @@ class SecondWindow(QMainWindow):
             self.map_window = MapWindow(latitude, longitude, self.main_window, self)
             self.map_window.show()
             self.hide()  # Hide the second window
-            logging.info("Opened map window")
+            #logging.info("Opened map window")
         except Exception as e:
             logging.error(f"Failed to open map window: {e}")
 
@@ -536,13 +535,13 @@ class MyApp(QMainWindow):
         self.update_timer = QTimer(self)
         self.update_timer.timeout.connect(self.update_values_from_db)
         self.update_timer.start(5000)  # Update every 5000 milliseconds (5 seconds)
-        logging.info("QTimer started to update values from database every 5 seconds")
+        #logging.info("QTimer started to update values from database every 5 seconds")
 
         # Set up a QTimer to update values in the second window periodically
         self.second_window_update_timer = QTimer(self)
         self.second_window_update_timer.timeout.connect(self.update_second_window_values)
         self.second_window_update_timer.start(5000)  # Update every 5000 milliseconds (5 seconds)
-        logging.info("QTimer started to update second window values every 5 seconds")
+        #logging.info("QTimer started to update second window values every 5 seconds")
 
         # Find the QDial widget
         self.dial = self.findChild(QDial, 'dial') 
@@ -566,7 +565,7 @@ class MyApp(QMainWindow):
 
         # Connect the dial's valueChanged signal to a slot
         self.dial.valueChanged.connect(self.update_speed)
-        logging.info("Connected valueChanged signal to update_speed slot")
+        #logging.info("Connected valueChanged signal to update_speed slot")
 
         # Find the QProgressBar widget
         self.progressBar = self.findChild(QProgressBar, 'progressBar')  
@@ -594,7 +593,7 @@ class MyApp(QMainWindow):
         cursor.execute(sqlquery)
         self.Range = round((cursor.fetchone()[0]), 2)
         conn.close()
-        logging.info(f"Initial Range: {self.Range}")
+        #logging.info(f"Initial Range: {self.Range}")
 
         # Initialize the Remaining variable
         conn = sqlite3.connect('SoleX_Database.db')
@@ -604,7 +603,7 @@ class MyApp(QMainWindow):
         initial_race_length = cursor.fetchone()[0]
         conn.close()
         self.Remaining = initial_race_length - self.SQLread(30)
-        logging.info(f"Initial Remaining: {self.Remaining}")
+        #logging.info(f"Initial Remaining: {self.Remaining}")
 
         # Find the QLabel widget for Range
         self.range_label = self.findChild(QLabel, 'label_2')  
@@ -706,7 +705,7 @@ class MyApp(QMainWindow):
         self.pushButton = self.findChild(QPushButton, 'pushButton')  
         assert self.pushButton is not None, "QPushButton not found!"
         self.pushButton.clicked.connect(self.open_second_window)
-        logging.info("Connected clicked signal to open_second_window slot")
+        #logging.info("Connected clicked signal to open_second_window slot")
 
         # Connect the button's clicked signal to a slot
         self.pushButton.clicked.connect(self.open_second_window)
@@ -716,19 +715,19 @@ class MyApp(QMainWindow):
         self.timer = QTimer(self)
         self.timer.timeout.connect(lambda: self.send_to_opencpn(self.Latitude, self.Longitude, self.Speed))
         self.timer.start(5000)  # Send data every 5000 milliseconds (5 seconds)
-        logging.info("QTimer started to send latitude and longitude every 5 seconds")
+        #logging.info("QTimer started to send latitude and longitude every 5 seconds")
 
         # Set up a QTimer to send BatteryCharge to Adafruit every 5 seconds
         self.adafruit_timer = QTimer(self)
         self.adafruit_timer.timeout.connect(self.send_to_adafruit)
         self.adafruit_timer.start(20000)  # Send data every 20000 milliseconds (20 seconds)
-        logging.info("QTimer started to send data to Adafruit every 20 seconds")
+        #logging.info("QTimer started to send data to Adafruit every 20 seconds")
 
         # Start the UDP server in a separate thread
         self.server_thread = threading.Thread(target=self.start_udp_server)
         self.server_thread.daemon = True  # Makes sure the server stops when the program ends
         self.server_thread.start()
-        logging.info("UDP server started")
+        #logging.info("UDP server started")
 
         self.open_remaining_window()
 
@@ -755,7 +754,7 @@ class MyApp(QMainWindow):
             self.second_window.set_text_edit('textEdit_20', self.RangeSlow)
             self.second_window.set_text_edit('textEdit_21', self.RangeFast)
             self.second_window.update_button_colors(self.BatteryStatus)
-            logging.info("Second window values updated from main window")
+            #logging.info("Second window values updated from main window")
 
     def update_values_from_db(self):
         print("Updating values from database")
@@ -831,7 +830,7 @@ class MyApp(QMainWindow):
             self.AuxilliaryCurrent = round(self.SQLread(24), 2)
 
             self.update_label_21_color()
-            logging.info("Values updated from database")
+            #logging.info("Values updated from database")
         except Exception as e:
                 logging.error(f"Error updating values from database: {e}")
 
@@ -842,21 +841,21 @@ class MyApp(QMainWindow):
     def update_speed(self, value):
         try:
             self.Speed = value
-            logging.info(f"Updating label to: {self.Speed} km/h")
+            #logging.info(f"Updating label to: {self.Speed} km/h")
             self.label.setText(f"{self.Speed} km/h")
-            logging.info(f"Speed is now: {self.Speed}")
+            #logging.info(f"Speed is now: {self.Speed}")
         except Exception as e:
             logging.error(f"Error updating speed: {e}")
 
     def update_label_21_color(self):
         if self.label_21 is not None:
-            logging.info(f"Updating label_21 color: Range = {self.Range}, Remaining = {self.Remaining}")
+            #logging.info(f"Updating label_21 color: Range = {self.Range}, Remaining = {self.Remaining}")
             if self.Range > self.Remaining:
                 self.label_21.setStyleSheet("background-color: rgb(0, 255, 16); color: black;")
-                logging.info("label_21 color set to green")
+                #logging.info("label_21 color set to green")
             else:
                 self.label_21.setStyleSheet("background-color: rgb(255, 0, 0); color: black;")
-                logging.info("label_21 color set to red")
+                #logging.info("label_21 color set to red")
 
     def SQLreadmessage(self, sensor_id, db_path="SoleX_Database.db", table_name="sensor_logs"):
                 """
@@ -953,7 +952,7 @@ class MyApp(QMainWindow):
         self.second_window.show()
         self.hide()
         self.update_label_21_color()  # Update the color when opening the second window
-        logging.info("Opened second window")
+        #logging.info("Opened second window")
 
     def update_second_window_values(self):
         if hasattr(self, 'second_window') and self.second_window.isVisible():
@@ -961,7 +960,7 @@ class MyApp(QMainWindow):
 
     def update_button_colors(self, battery_status):
         try:
-            logging.info(f"Updating button colors for battery status: {battery_status}")
+            #logging.info(f"Updating button colors for battery status: {battery_status}")
             pushButton_1 = self.findChild(QPushButton, 'pushButton')
             pushButton_2 = self.findChild(QPushButton, 'pushButton_2')
             pushButton_3 = self.findChild(QPushButton, 'pushButton_3')
@@ -985,12 +984,12 @@ class MyApp(QMainWindow):
                 pushButton_2.setStyleSheet("background-color: rgb(128, 128, 128)")
                 pushButton_3.setStyleSheet("background-color: rgb(128, 128, 128)")
 
-            logging.info(f"Battery status: {battery_status}, button colors updated")
+            #logging.info(f"Battery status: {battery_status}, button colors updated")
         except Exception as e:
             logging.error(f"Error updating button colors: {e}")
 
     def send_to_opencpn(self, latitude, longitude, speed):
-        logging.info(f"Sending latitude: {latitude}, longitude: {longitude}, speed: {speed} to OpenCPN")
+        #logging.info(f"Sending latitude: {latitude}, longitude: {longitude}, speed: {speed} to OpenCPN")
         # Format latitude and longitude into NMEA sentences
         try:
             nmea_lat = self.format_nmea_latitude(latitude)
@@ -1009,7 +1008,7 @@ class MyApp(QMainWindow):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
             sock.sendto(nmea_sentence.encode(), (udp_ip, udp_port))
-            logging.info(f"Sent NMEA sentence to OpenCPN: {nmea_sentence}")
+            #logging.info(f"Sent NMEA sentence to OpenCPN: {nmea_sentence}")
         except Exception as e:
             logging.error(f"Failed to send NMEA sentence: {e}")
 
@@ -1024,7 +1023,7 @@ class MyApp(QMainWindow):
 
         try:
             sock.sendto(nmea_speed_sentence.encode(), (udp_ip, udp_port))
-            logging.info(f"Sent NMEA speed sentence to OpenCPN: {nmea_speed_sentence}")
+            #logging.info(f"Sent NMEA speed sentence to OpenCPN: {nmea_speed_sentence}")
         except Exception as e:
             logging.error(f"Failed to send NMEA speed sentence: {e}")
 
@@ -1082,9 +1081,9 @@ class MyApp(QMainWindow):
 
             # Update the battery time plot data
             try:
-                logging.info(f"Appending data to plot: {self.BatteryCharge}, {datetime.now()}")
+                #logging.info(f"Appending data to plot: {self.BatteryCharge}, {datetime.now()}")
                 self.battery_time_plot_window.data.append((self.BatteryCharge, datetime.now()))
-                logging.info(f"Data appended to plot: {self.battery_time_plot_window.data}")
+                #logging.info(f"Data appended to plot: {self.battery_time_plot_window.data}")
             except Exception as e:
                 logging.error(f"Error updating battery time plot data: {e}")
 
@@ -1122,7 +1121,7 @@ class MyApp(QMainWindow):
         udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
             udp_socket.bind(('0.0.0.0', 12345))  # Bind to all interfaces on port 12345
-            logging.info("UDP server listening on port 12345")
+            #logging.info("UDP server listening on port 12345")
         except Exception as e:
             logging.error(f"Error binding UDP socket: {e}")
             return
@@ -1131,14 +1130,14 @@ class MyApp(QMainWindow):
             try:
                 message, addr = udp_socket.recvfrom(1024)
                 message = message.decode('utf-8')
-                logging.info(f"Received message from {addr}: {message}")
+                #logging.info(f"Received message from {addr}: {message}")
                 # Post a custom event to the main thread
                 QApplication.postEvent(self, ShowMessageEvent(message))
             except Exception as e:
                 logging.error(f"Error receiving message: {e}")
 
     def show_message_window(self, message):
-        logging.info("Attempting to show MessageWindow")
+        #logging.info("Attempting to show MessageWindow")
         try:
             # Close any currently open UI
             self.hide()
@@ -1150,12 +1149,12 @@ class MyApp(QMainWindow):
             # Show the message window
             self.message_window = MessageWindow(message, self)
             self.message_window.show()
-            logging.info("MessageWindow shown")
+            #logging.info("MessageWindow shown")
         except Exception as e:
             logging.error(f"Error showing MessageWindow: {e}")
 
 def signal_handler(sig, frame):
-    logging.info("Exiting...")
+    #logging.info("Exiting...")
     sys.exit(0)
 
 if __name__ == "__main__":

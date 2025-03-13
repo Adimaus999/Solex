@@ -625,7 +625,7 @@ if __name__ == "__main__":
         # Extract GPS sensor data from SQL
         
         # Speed data from SQL
-        dataStructure['speed'].iat[-1] = SQLread(10)
+        dataStructure['speed'].iat[-1] = SQLread(10)*3.6
         if np.isnan(dataStructure['speed'].iat[-1]):
             # If value unavailable, use interpolation function
             dataStructure = interpolate_next_value(dataStructure, 'speed')
@@ -860,7 +860,7 @@ if __name__ == "__main__":
         # Speed strategy optimisation: find the optimal speed to cross the finish line with very low SOC
         # Add a 7km contingency buffer to the calculation to leave approx. 10% charge level at the end of the race
         # Retrieve distance remaining from SQL
-        distanceRemaining = approxRaceLength - SQLread(30)+7
+        distanceRemaining = approxRaceLength - (SQLread(30)/1000) + 7
         #Initialise an array of zeros corresponding to the discrete speeds array used above
         # This will represent the range of the boat at each speed
         rangessArray = np.array([])
