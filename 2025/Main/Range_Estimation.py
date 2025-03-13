@@ -517,7 +517,7 @@ if __name__ == "__main__":
     currentSpeed = 0
     highSpeed = 15
     # Define battery capacity and convert to Ws
-    batteryCapacity = 1.4e3 * 3600
+    batteryCapacity = 1357.8 * 3600
     # Define the area of solar pannels on the boat m2
     solarArea = 2 
     # Define an intial estimate for the solar efficiency
