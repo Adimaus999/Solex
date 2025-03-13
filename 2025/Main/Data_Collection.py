@@ -15,39 +15,11 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 import math
 import subprocess
 
-# Database configuration
-DB_PATH = "C:\SOLEX\Solex\2025\Archive\Max\NUC_Working_Files\new_sensors.db"
-ENGINE = create_engine(f"sqlite:///{DB_PATH}", echo=False)
-Session = sessionmaker(bind=ENGINE) 
-session = Session()
-Base = declarative_base()
 
-# Define Sensor Metadata Table
-class Sensor(Base):
-    __tablename__ = "sensors"
-    id = Column(Integer, primary_key=True)
-    name = Column(String(50), unique=True, nullable=False)
-    unit = Column(String(20))
-    description = Column(String(200))
 
-# Define Numeric Sensor Data Table (e.g., SOC, GPS)
-class SensorData(Base):
-    __tablename__ = "sensor_data"
-    id = Column(Integer, primary_key=True)
-    sensor_id = Column(Integer, ForeignKey("sensors.id"), nullable=False)
-    value = Column(Float, nullable=False)  # Only numeric values
-    timestamp = Column(TIMESTAMP, default=datetime.utcnow)
-
-# Define Log Table for Non-Numeric Data (Alarms, Status Messages)
-class SensorLog(Base):
-    __tablename__ = "sensor_logs"
-    id = Column(Integer, primary_key=True)
-    sensor_id = Column(Integer, ForeignKey("sensors.id"), nullable=False)
-    message = Column(String(500), nullable=False)  # Text-based values
-    timestamp = Column(TIMESTAMP, default=datetime.utcnow)
 
 # Create tables if they don't exist
-Base.metadata.create_all(ENGINE)
+
 
 # Function to insert sensor metadata (only needed once)
 def initialize_sensors():
@@ -99,7 +71,7 @@ def initialize_sensors():
             session.add(Sensor(**sensor))
     session.commit()
 
-initialize_sensors()
+
 
 # Enum for CAN Bus speed (only 250000 is defined here)
 class CANUSB_SPEED(Enum):
@@ -734,10 +706,45 @@ class UsbCanAdapter:
             
 
 
-
-
-
 # Main entry point for the scriptca
 if __name__ == "__main__":
+    # Database configuration
+    DB_PATH = "SoleX_Database.db"
+    ENGINE = create_engine(f"sqlite:///{DB_PATH}", echo=False)
+    Session = sessionmaker(bind=ENGINE) 
+    session = Session()
+    Base = declarative_base()
+
+    # Define Sensor Metadata Table
+    class Sensor(Base):
+        __tablename__ = "sensors"
+        id = Column(Integer, primary_key=True)
+        name = Column(String(50), unique=True, nullable=False)
+        unit = Column(String(20))
+        description = Column(String(200))
+
+    # Define Numeric Sensor Data Table (e.g., SOC, GPS)
+    class SensorData(Base):
+        __tablename__ = "sensor_data"
+        id = Column(Integer, primary_key=True)
+        sensor_id = Column(Integer, ForeignKey("sensors.id"), nullable=False)
+        value = Column(Float, nullable=False)  # Only numeric values
+        timestamp = Column(TIMESTAMP, default=datetime.utcnow)
+
+    # Define Log Table for Non-Numeric Data (Alarms, Status Messages)
+    class SensorLog(Base):
+        __tablename__ = "sensor_logs"
+        id = Column(Integer, primary_key=True)
+        sensor_id = Column(Integer, ForeignKey("sensors.id"), nullable=False)
+        message = Column(String(500), nullable=False)  # Text-based values
+        timestamp = Column(TIMESTAMP, default=datetime.utcnow)
+
+
+
+    Base.metadata.create_all(ENGINE)
+
+    initialize_sensors()
+
+    subprocess.Popen(["powershell", "-NoExit", "-Command", "python GUI.py"])
     uca = UsbCanAdapter()  # Create an instance of the UsbCanAdapter class
     uca.main()  # Start the main function
