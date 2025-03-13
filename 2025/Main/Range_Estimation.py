@@ -340,7 +340,7 @@ def get_future_solar_irradiance_avg(lat, lon, hours=6):
 
         # Extract GHI forecasts for the next 6 hours
         for forecast in data["list"][:hours]:
-            ghi = forecast.get("radiation", {}).get("ghi", 0)  # Get GHI, default to 0 if missing
+            ghi = forecast.get("radiation", {}).get("ghi", 9999)  # Get GHI, default to 9999 if missing
             ghi_values.append(ghi)
             
         # Return 0 if there is an issue so that the range estimatio can still work ignoring solar charging
@@ -391,12 +391,12 @@ def computeRange(speedOfInterest, consumptionRate, rangeEstArray):
         time = 0
 
         # Convert the dataframe column of interest to a numpy array
-        arrSolV = solarDataStructure[str(solarVoltage)].to_numpy()
-        arrSolI = solarDataStructure[str(solarCurrent)].to_numpy()
+        arrSolV = solarDataStructure['solarVoltage'].to_numpy()
+        arrSolI = solarDataStructure['solarCurrent'].to_numpy()
 
         # Extract all valid values in most recent 10 data entries, if they exist
-        solarVAv = np.mean(arr[~np.isnan(arrSolV)][-1800:])
-        solarIAv = np.mean(arr[~np.isnan(arrSolI)][-1800:])
+        solarVAv = np.mean(arrSolV[~np.isnan(arrSolV)][-1800:])
+        solarIAv = np.mean(arrSolI[~np.isnan(arrSolI)][-1800:])
 
         # Compute initial range estimate
         rangeEstInitial = (((batteryStateOfCharge * batteryCapacity) + (solarVAv * solarIAv * time)) * speedOfInterest) / consumptionRate
