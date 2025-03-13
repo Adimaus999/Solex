@@ -553,7 +553,7 @@ if __name__ == "__main__":
     rangessArray = np.array([0])
     
     # Set the race start time (24-hour format: HH:MM)
-    target_time = "10:00"
+    target_time = "09:00"
 
     # Convert target time to datetime format
     target_dt = datetime.strptime(target_time, "%H:%M").replace(
