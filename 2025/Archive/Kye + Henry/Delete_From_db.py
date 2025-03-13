@@ -1,5 +1,5 @@
 import sqlite3
-conn = sqlite3.connect('C:/Users/kyeba/OneDrive/Documents/Group Project/Coding/Solex/Kye/Solex/2025/Working_Files/Database/SoleX_Database.db')
+conn = sqlite3.connect('sensors1.db')
 cursor = conn.cursor()
 
 cursor.execute("DELETE FROM sensor_data")
