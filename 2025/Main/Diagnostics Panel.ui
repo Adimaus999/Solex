@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>Diagnositcs </string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <widget class="QLabel" name="label">
@@ -3408,7 +3408,7 @@ QPushButton:pressed {
      </font>
     </property>
     <property name="text">
-     <string>km/hs</string>
+     <string>m/s^2</string>
     </property>
    </widget>
    <widget class="QLabel" name="label_42">
@@ -7108,7 +7108,7 @@ QPushButton:pressed {
      <x>0</x>
      <y>0</y>
      <width>2126</width>
-     <height>26</height>
+     <height>22</height>
     </rect>
    </property>
   </widget>
