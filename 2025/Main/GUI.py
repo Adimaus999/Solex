@@ -562,10 +562,10 @@ class MyApp(QMainWindow):
         font.setPointSize(72)
         self.label.setFont(font)
         assert self.label is not None, "QLabel not found!"
-        self.label.setText(f"{self.Speed} km/h")
+        self.label.setText(f"{self.Speed} ")
 
         # Update the label to show the initial Speed value
-        self.label.setText(f"{self.Speed} km/h")
+        self.label.setText(f"{self.Speed}")
 
         # Connect the dial's valueChanged signal to a slot
         self.dial.valueChanged.connect(self.update_speed)
