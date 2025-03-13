@@ -16,6 +16,7 @@ import os
 import requests
 import subprocess
 import logging
+from PyQt6.QtGui import QFont
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -557,6 +558,9 @@ class MyApp(QMainWindow):
 
         # Find the QLabel widget for Speed
         self.label = self.findChild(QLabel, 'label_20')  
+        font = QFont()
+        font.setPointSize(72)
+        self.label.setFont(font)
         assert self.label is not None, "QLabel not found!"
         self.label.setText(f"{self.Speed} km/h")
 
