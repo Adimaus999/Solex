@@ -5865,7 +5865,7 @@ QPushButton:pressed {
      </font>
     </property>
     <property name="text">
-     <string>Auxilliaries</string>
+     <string>Auxilliary</string>
     </property>
    </widget>
    <widget class="QLabel" name="label_54">

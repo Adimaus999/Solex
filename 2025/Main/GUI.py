@@ -226,6 +226,7 @@ class BatteryTimePlotWindow(QMainWindow):
                 logging.debug(f"Elapsed times: {elapsed_times}")
                 logging.debug(f"Charges: {charges}")
                 self.plot.plot(elapsed_times, charges, pen=pg.mkPen(color='w', width=2))
+                self.plot.plot(elapsed_times, charges*0.5, pen=pg.mkPen(color='b', width=2))
         except Exception as e:
             logging.error(f"Error updating plot: {e}")
 
