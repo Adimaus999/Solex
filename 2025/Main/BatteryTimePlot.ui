@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Battery SOC Plot</string>
+   <string>Data Plots</string>
   </property>
   <widget class="QLabel" name="label">
    <property name="geometry">

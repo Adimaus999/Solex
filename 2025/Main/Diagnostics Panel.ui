@@ -7013,7 +7013,7 @@ QPushButton:pressed {
      <bool>true</bool>
     </property>
     <property name="text">
-     <string>Battery</string>
+     <string>Plots</string>
     </property>
    </widget>
    <zorder>label_44</zorder>
@@ -7108,7 +7108,7 @@ QPushButton:pressed {
      <x>0</x>
      <y>0</y>
      <width>2126</width>
-     <height>22</height>
+     <height>21</height>
     </rect>
    </property>
   </widget>

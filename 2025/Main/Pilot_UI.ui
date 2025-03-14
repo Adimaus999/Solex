@@ -1326,7 +1326,7 @@ QProgressBar::chunk {
    <widget class="QLabel" name="label_20">
     <property name="geometry">
      <rect>
-      <x>150</x>
+      <x>130</x>
       <y>200</y>
       <width>261</width>
       <height>151</height>
@@ -1337,11 +1337,23 @@ QProgressBar::chunk {
       <pointsize>16</pointsize>
      </font>
     </property>
+    <property name="frameShape">
+     <enum>QFrame::NoFrame</enum>
+    </property>
+    <property name="frameShadow">
+     <enum>QFrame::Plain</enum>
+    </property>
+    <property name="lineWidth">
+     <number>2</number>
+    </property>
     <property name="text">
-     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:72pt;&quot;&gt;0&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:72pt;&quot;&gt;00.00&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
     </property>
     <property name="textFormat">
      <enum>Qt::RichText</enum>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignCenter</set>
     </property>
    </widget>
    <widget class="QPushButton" name="pushButton">
@@ -3890,7 +3902,6 @@ QProgressBar::chunk {
    <zorder>pushButton</zorder>
    <zorder>label_5</zorder>
    <zorder>label_7</zorder>
-   <zorder>label_20</zorder>
    <zorder>label_9</zorder>
    <zorder>label_6</zorder>
    <zorder>progressBar</zorder>
@@ -3903,6 +3914,7 @@ QProgressBar::chunk {
    <zorder>label_22</zorder>
    <zorder>label_21</zorder>
    <zorder>pushButton_2</zorder>
+   <zorder>label_20</zorder>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
@@ -3910,7 +3922,7 @@ QProgressBar::chunk {
      <x>0</x>
      <y>0</y>
      <width>1929</width>
-     <height>22</height>
+     <height>21</height>
     </rect>
    </property>
   </widget>

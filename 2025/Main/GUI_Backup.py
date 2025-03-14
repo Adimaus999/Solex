@@ -39,7 +39,6 @@ class MessageWindow(QMainWindow):
         print("Initializing MessageWindow")  # Debug print statement
         uic.loadUi("Message.ui", self)  # Ensure the Message.ui file is in the correct location
         self.message_label = self.findChild(QLabel, 'label_3')  # Ensure the QLabel is named 'label_3' in the .ui file
-        self.showFullScreen()
         if self.message_label:
             print(f"Setting message: {message}")  # Debug print statement
             self.message_label.setText(message)
@@ -47,7 +46,7 @@ class MessageWindow(QMainWindow):
             print("QLabel 'label_3' not found in Message.ui")
         self.parent_window = parent_window
         QTimer.singleShot(10000, self.close_message_window)  # Close the window after 10 seconds
-        
+
     def close_message_window(self):
         print("Closing MessageWindow")  # Debug print statement
         self.close()
@@ -75,7 +74,7 @@ class RemainingWindow(QMainWindow):
         self.pushButton = self.findChild(QPushButton, 'pushButton')
         assert self.pushButton is not None, "QPushButton not found!"
         self.pushButton.clicked.connect(self.return_to_main_window)
-        self.showFullScreen()
+
     def showEvent(self, event):
         super().showEvent(event)
         if self.remaining_input is not None:
@@ -206,7 +205,7 @@ class BatteryTimePlotWindow(QMainWindow):
         self.plot_layout = QVBoxLayout(self.plot_widget)
         self.plot = pg.PlotWidget()
         self.plot_layout.addWidget(self.plot)
-        self.plot.setLabel('left', 'Value')
+        self.plot.setLabel('left', 'Battery Charge')
         self.plot.setLabel('bottom', 'Time (seconds)')
         self.plot.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.plot_widget.setLayout(self.plot_layout)
@@ -215,47 +214,19 @@ class BatteryTimePlotWindow(QMainWindow):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_plot)
         self.timer.start(1000)  # Update every second
-        
+
     def update_plot(self):
         try:
             logging.debug("update_plot called")
             self.plot.clear()
             if self.data:
-                elapsed_times = [(x[4] - self.start_time).total_seconds() for x in self.data]
+                logging.debug(f"Data in deque: {self.data}")
+                elapsed_times = [(x[1] - self.start_time).total_seconds() for x in self.data]
                 charges = [x[0] for x in self.data]
-                motor_powers = [x[1] for x in self.data]
-                solar_powers = [x[2] for x in self.data]
-                aux_powers = [x[3] for x in self.data]
                 logging.debug(f"Elapsed times: {elapsed_times}")
                 logging.debug(f"Charges: {charges}")
-                logging.debug(f"Motor Powers: {motor_powers}")
-                logging.debug(f"Solar Powers: {solar_powers}")
-                logging.debug(f"Auxiliary Powers: {aux_powers}")
-
-                # Plot data
-                self.plot.plot(elapsed_times, charges, pen=pg.mkPen(color='r', width=2), name="Battery Charge")
-                self.plot.plot(elapsed_times, motor_powers, pen=pg.mkPen(color='g', width=2), name="Motor Power")
-                self.plot.plot(elapsed_times, solar_powers, pen=pg.mkPen(color='w', width=2), name="Solar Power")
-                self.plot.plot(elapsed_times, aux_powers, pen=pg.mkPen(color='y', width=2), name="Auxiliary Power")
-
-               # Add text labels in the top corner with values
-                soc_text = pg.TextItem(text=f"SOC: {charges[-1]:.2f}", color='r', anchor=(1, 1))
-                soc_text.setPos(elapsed_times[-1], 2500)
-                self.plot.addItem(soc_text)
-
-                motor_text = pg.TextItem(text=f"Motor: {motor_powers[-1]:.2f}", color='g', anchor=(1, 1))
-                motor_text.setPos(elapsed_times[-1], 2250)
-                self.plot.addItem(motor_text)
-
-                solar_text = pg.TextItem(text=f"Solar: {solar_powers[-1]:.2f}", color='w', anchor=(1, 1))
-                solar_text.setPos(elapsed_times[-1], 2000)
-                self.plot.addItem(solar_text)
-
-                aux_text = pg.TextItem(text=f"Aux: {aux_powers[-1]:.2f}", color='y', anchor=(1, 1))
-                aux_text.setPos(elapsed_times[-1], 1750)
-                self.plot.addItem(aux_text)
-
-                self.plot.setYRange(0, 2500)  # Set y-axis range between 0 and 10,000
+                self.plot.plot(elapsed_times, charges, pen=pg.mkPen(color='r', width=2))
+                self.plot.setYRange(0, 100)  # Set y-axis range between 0 and 100
         except Exception as e:
             logging.error(f"Error updating plot: {e}")
 
@@ -277,7 +248,7 @@ class MapWindow(QMainWindow):
         self.timer.timeout.connect(self.update_location)
         self.timer.start(2000)  # Update every 2 seconds
         self.update_location()
-        self.showFullScreen()
+
         # Find the QPushButton widget for returning to the main window
         self.pushButton = self.findChild(QPushButton, 'pushButton')
         assert self.pushButton is not None, "QPushButton not found!"
@@ -321,7 +292,6 @@ class SecondWindow(QMainWindow):
             logging.error(f"Failed to load Diagnostics Panel.ui: {e}")
 
         # Find and set the QTextEdit widgets
-        self.showFullScreen()
         self.set_text_edit('textEdit', battery_charge)
         self.set_text_edit('textEdit_3', battery_error)
         self.set_text_edit('textEdit_4', motor_current)
@@ -563,17 +533,6 @@ class MyApp(QMainWindow):
             logging.error(f"Failed to load Pilot_UI.ui: {e}")
             raise
 
-
-        
-        try:
-            os.system('taskkill /IM osk.exe /F')
-            #logging.info("On-screen keyboard closed")
-        except OSError as e:
-            logging.error(f"OS error: {e}")
-        except Exception as e:
-            logging.error(f"Unexpected error: {e}")
-            
-        self.showFullScreen()
         # Set up a QTimer to update values from the database periodically
         self.update_timer = QTimer(self)
         self.update_timer.timeout.connect(self.update_values_from_db)
@@ -806,7 +765,7 @@ class MyApp(QMainWindow):
         print("Updating values from database")
         try:
             self.Speed = round(self.SQLread(10), 2)
-            self.label.setText(f"{self.Speed}")
+            self.label.setText(f"{self.Speed} km/h")
             self.dial.setValue(int(round(self.Speed)))
 
             self.BatteryCharge = round((self.SQLread(1) * 100), 2)
@@ -888,7 +847,7 @@ class MyApp(QMainWindow):
         try:
             self.Speed = value
             #logging.info(f"Updating label to: {self.Speed} km/h")
-            self.label.setText(f"{self.Speed}")
+            self.label.setText(f"{self.Speed} km/h")
             #logging.info(f"Speed is now: {self.Speed}")
         except Exception as e:
             logging.error(f"Error updating speed: {e}")
@@ -1128,7 +1087,7 @@ class MyApp(QMainWindow):
             # Update the battery time plot data
             try:
                 #logging.info(f"Appending data to plot: {self.BatteryCharge}, {datetime.now()}")
-                self.battery_time_plot_window.data.append((self.BatteryCharge, self.MotorPower, self.SolarPower, self.AuxilliaryPower, datetime.now()))
+                self.battery_time_plot_window.data.append((self.BatteryCharge, datetime.now()))
                 #logging.info(f"Data appended to plot: {self.battery_time_plot_window.data}")
             except Exception as e:
                 logging.error(f"Error updating battery time plot data: {e}")
