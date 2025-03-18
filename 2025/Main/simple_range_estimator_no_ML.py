@@ -135,21 +135,13 @@ if __name__=="__main__":
     
     # Define battery capacity and convert to Ws
     batteryCapacity = 1357.8 * 3600
-    
-    # Define the race length
-    conn = sqlite3.connect('SoleX_Database.db')
-    cursor = conn.cursor()
-    sqlquery = '''SELECT raceLength FROM race_length ORDER BY datetime(timestamp) DESC LIMIT 1'''
-    cursor.execute(sqlquery)
-    approxRaceLength = cursor.fetchone()[0]
-    conn.close()
-    
+        
     # Define the refresh rate of the range estimation script
-    interval = 5
+    interval = 1
     iteration = 0
     
     # Initialise empty arrays for range
-    csRangeArray = np.arrray([])
+    csRangeArray = np.array([])
     
     # Set a retraining rate for the ML of every 200 new data points
     retrainRate = 200
@@ -179,6 +171,7 @@ if __name__=="__main__":
         # Gather most recent sensor data from SQL
         # Speed
         dataStructure['speed'].iat[-1] = SQLread(10)*3.6
+        currentSpeed = dataStructure['speed'].iat[-1]
         # BatteryCurrent
         dataStructure['batteryCurrent'].iat[-1] = SQLread(27)
         # BatteryVoltage
@@ -193,8 +186,18 @@ if __name__=="__main__":
         dataStructure['solarVoltage'].iat[-1] = SQLread(25)
         
         # Compute range estimates
-        
+        max_iter = 10000
         csRange = ((dataStructure['batteryStateOfCharge'].iat[-1] * batteryCapacity) * (currentSpeed*1000/3600)) / dataStructure['batteryPowerConsumption'].iat[-1]
+        csRange = (((dataStructure['batteryStateOfCharge'].iat[-1] * batteryCapacity)  * (currentSpeed*1000/3600)) / dataStructure['batteryPowerConsumption'].iat[-1]) * (1/1000)
+        currentSpeedTime = (csRange / currentSpeed) * 3600
+        csRangeNew = ((((dataStructure['batteryStateOfCharge'].iat[-1] * batteryCapacity) + (dataStructure['solarCurrent'].iat[-1] * dataStructure['solarVoltage'].iat[-1] * currentSpeedTime)) * (currentSpeed*1000/3600)) / dataStructure['batteryPowerConsumption'].iat[-1]) * (1/1000)
+        iter_count = 0
+        while (csRangeNew-csRange>0.01) and (iter_count < max_iter):
+            iter_count+=1
+            currentSpeedTime = (csRangeNew / currentSpeed) * 3600
+            csRange = csRangeNew
+            csRangeNew = ((((dataStructure['batteryStateOfCharge'].iat[-1] * batteryCapacity) + (dataStructure['solarCurrent'].iat[-1] * dataStructure['solarVoltage'].iat[-1] * currentSpeedTime)) * (currentSpeed*1000/3600)) / dataStructure['batteryPowerConsumption'].iat[-1]) * (1/1000)
+        csRange = csRangeNew
         if (len(csRangeArray)==0) and np.isnan(csRange):
             csRange = 0
         elif np.isnan(csRange):
@@ -206,7 +209,9 @@ if __name__=="__main__":
         rangessOptimalSpeed = 9999
         ssRange = 0
         hsRange = 0
-
+        
+        csRange = 9999 if np.isinf(csRange) else (0 if np.isnan(csRange) else csRange)
+        
         # Convert to float to avoid BLOB in SQL
         ssRange = float(ssRange)
         csRange = float(csRange)
@@ -230,6 +235,7 @@ if __name__=="__main__":
         conn.commit()
         conn.close()
         
+        print(csRange)
         # Complete while loop with increase in iteration count and time sleep according to elapsed time
         iteration+=1
         elapsed = time.time()-startTime
