@@ -97,7 +97,7 @@ def appendNewZeros(dataStructure):
     return dataStructure
 
 # Fucntion to either train a new machine learning model, or retrain an existing model
-def train_or_retrain(dataStructure, model_path="xgboost_model.json", temp_model_path="xgboost_model_temp.json", test_size=0.2, random_state=42):
+def train_or_retrain(dataStructure, model_path="xgboost_model_V2_code.json", temp_model_path="xgboost_model_temp_V2_code.json", test_size=0.2, random_state=42):
     """
     Recieves a data frame input of training data, and either trains a new XGBoost model (if one does not already exist) or retrais an existing model
     correctly identifying what data is new from the input data frame. The retrained model is temporarily saved under a differnt name to avoid issues of calling
@@ -184,7 +184,7 @@ def train_or_retrain(dataStructure, model_path="xgboost_model.json", temp_model_
         os.remove(temp_model_path)
         
 # A function to use the XGBoost model to preidct power consumption of the boat at a set speed.
-def predict_with_model(data, model_path="xgboost_model.json"):
+def predict_with_model(data, model_path="xgboost_model_V2_code.json"):
    """
    A function to predict the power consumption of the boat at a given speed. Data can be the full data set of live sensor readings for the current speed
    range estimaate at a set time, or just the battery SOC and speed of interest if using the simple model for alternative speed strategies. The data input is in the form f a data frame. 
@@ -226,13 +226,13 @@ if __name__=="__main__":
     cursor = conn.cursor()
     
     # Check if the table exists
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='range_estimates_simplified_ML'")
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='range_estimates_simple_ML_model'")
     table_exists = cursor.fetchone()
     
     # Create the table if it does not exist
     if not table_exists:
         create_table_query = '''
-        CREATE TABLE IF NOT EXISTS range_estimates_simplified_ML (
+        CREATE TABLE IF NOT EXISTS range_estimates_simple_ML_model (
             timestamp TEXT,
             ssRange REAL,
             csRange REAL,
@@ -270,12 +270,12 @@ if __name__=="__main__":
     conn.close()
     
     # Define the refresh rate of the range estimation script
-    interval = 5
+    interval = 1
     iteration = 0
     
     # Initialise empty arrays for range
     ssRangeArray = np.array([])
-    csRangeArray = np.arrray([])
+    csRangeArray = np.array([])
     hsRangeArray = np.array([])
     
     # Set a retraining rate for the ML of every 200 new data points
@@ -306,6 +306,7 @@ if __name__=="__main__":
         # Gather most recent sensor data from SQL
         # Speed
         dataStructure['speed'].iat[-1] = SQLread(10)*3.6
+        currentSpeed = max(0.001, dataStructure['speed'].iat[-1])
         # BatteryCurrent
         dataStructure['batteryCurrent'].iat[-1] = SQLread(27)
         # BatteryVoltage
@@ -329,33 +330,63 @@ if __name__=="__main__":
         currentSpeedPowerConsumption = predict_with_model(predictionInputDataCurrentSpeed)
         # Predict power consumption at slow speed strategy using ML models
         predictionInputDataSlowSpeed = pd.DataFrame({'speed': [slowSpeed], 'batteryStateOfCharge': [(dataStructure.iloc[-1]['batteryStateOfCharge'])]})
-        slowSpeedPowerConsumption = predict_with_model(predictionInputDataSlowSpeed, model_path="simple_xgboost_model.json")
+        slowSpeedPowerConsumption = predict_with_model(predictionInputDataSlowSpeed)
         # Predict power consumption at high-speed strategy using ML models
         predictionInputDataHighSpeed = pd.DataFrame({'speed': [highSpeed], 'batteryStateOfCharge': [(dataStructure.iloc[-1]['batteryStateOfCharge'])]})
-        highSpeedPowerConsumption = predict_with_model(predictionInputDataHighSpeed, model_path="simple_xgboost_model.json")
+        highSpeedPowerConsumption = predict_with_model(predictionInputDataHighSpeed)
         
         # Compute range estimates
         # Fist, compute distance remaining
-        distanceRemaining = max(0, (approxRaceLength - (SQLread(30)/1000)))
-        slowSpeedTime = distanceRemaining / slowSpeed
-        currentSpeedTime = distanceRemaining / currentSpeed
-        highSpeedTime = distanceRemaining / highSpeed
+        # distanceRemaining = max(0, (approxRaceLength - (SQLread(30)/1000)))
+        # slowSpeedTime = (distanceRemaining / slowSpeed) * 3600
+        # currentSpeedTime = (distanceRemaining / currentSpeed) * 3600 
+        # highSpeedTime = (distanceRemaining / highSpeed) * 3600
+        max_iter = 10000
         
-        ssRange = (((dataStructure['batteryStateOfCharge'].iat[-1] * batteryCapacity) + (dataStructure['solarCurrent'].iat[-1] * dataStructure['solarVoltage'].iat[-1] * slowSpeedTime)) * (slowSpeed*1000/3600)) / slowSpeedPowerConsumption
+        ssRange = (((dataStructure['batteryStateOfCharge'].iat[-1] * batteryCapacity)  * (slowSpeed*1000/3600)) / slowSpeedPowerConsumption) * (1/1000)
+        slowSpeedTime = (ssRange / slowSpeed) * 3600
+        ssRangeNew = ((((dataStructure['batteryStateOfCharge'].iat[-1] * batteryCapacity) + (dataStructure['solarCurrent'].iat[-1] * dataStructure['solarVoltage'].iat[-1] * slowSpeedTime)) * (slowSpeed*1000/3600)) / slowSpeedPowerConsumption) * (1/1000)
+        iter_count = 0
+        while (ssRangeNew-ssRange>0.01) and (iter_count < max_iter):
+            iter_count+=1
+            slowSpeedTime = (ssRangeNew / slowSpeed) * 3600
+            ssRange = ssRangeNew
+            ssRangeNew = ((((dataStructure['batteryStateOfCharge'].iat[-1] * batteryCapacity) + (dataStructure['solarCurrent'].iat[-1] * dataStructure['solarVoltage'].iat[-1] * slowSpeedTime)) * (slowSpeed*1000/3600)) / slowSpeedPowerConsumption) * (1/1000)
+        ssRange = ssRangeNew
         if (len(ssRangeArray)==0) and np.isnan(ssRange):
             ssRange = 0
         elif np.isnan(ssRange):
             ssRange = ssRangeArray[-1]
         else:
             ssRangeArray = np.append(ssRangeArray, ssRange)
-        csRange = (((dataStructure['batteryStateOfCharge'].iat[-1] * batteryCapacity) + (dataStructure['solarCurrent'].iat[-1] * dataStructure['solarVoltage'].iat[-1] * currentSpeedTime)) * (currentSpeed*1000/3600)) / currentSpeedPowerConsumption
+        
+        csRange = (((dataStructure['batteryStateOfCharge'].iat[-1] * batteryCapacity)  * (currentSpeed*1000/3600)) / currentSpeedPowerConsumption) * (1/1000)
+        currentSpeedTime = (csRange / currentSpeed) * 3600
+        csRangeNew = ((((dataStructure['batteryStateOfCharge'].iat[-1] * batteryCapacity) + (dataStructure['solarCurrent'].iat[-1] * dataStructure['solarVoltage'].iat[-1] * currentSpeedTime)) * (currentSpeed*1000/3600)) / currentSpeedPowerConsumption) * (1/1000)
+        iter_count = 0
+        while (csRangeNew-csRange>0.01) and (iter_count < max_iter):
+            iter_count+=1
+            currentSpeedTime = (csRangeNew / currentSpeed) * 3600
+            csRange = csRangeNew
+            csRangeNew = ((((dataStructure['batteryStateOfCharge'].iat[-1] * batteryCapacity) + (dataStructure['solarCurrent'].iat[-1] * dataStructure['solarVoltage'].iat[-1] * currentSpeedTime)) * (currentSpeed*1000/3600)) / currentSpeedPowerConsumption) * (1/1000)
+        csRange = csRangeNew
         if (len(csRangeArray)==0) and np.isnan(csRange):
             csRange = 0
         elif np.isnan(csRange):
             csRange = csRangeArray[-1]
         else:
             csRangeArray = np.append(csRangeArray, csRange)
-        hsRange = (((dataStructure['batteryStateOfCharge'].iat[-1] * batteryCapacity) + (dataStructure['solarCurrent'].iat[-1] * dataStructure['solarVoltage'].iat[-1] * highSpeedTime)) * (highSpeed*1000/3600)) / highSpeedPowerConsumption
+        
+        hsRange = (((dataStructure['batteryStateOfCharge'].iat[-1] * batteryCapacity)  * (highSpeed*1000/3600)) / highSpeedPowerConsumption) * (1/1000)
+        highSpeedTime = (hsRange / highSpeed) * 3600
+        hsRangeNew = ((((dataStructure['batteryStateOfCharge'].iat[-1] * batteryCapacity) + (dataStructure['solarCurrent'].iat[-1] * dataStructure['solarVoltage'].iat[-1] * highSpeedTime)) * (highSpeed*1000/3600)) / highSpeedPowerConsumption) * (1/1000)
+        iter_count = 0
+        while (hsRangeNew-hsRange>0.4) and (iter_count < max_iter):
+            iter_count+=1
+            highSpeedTime = (hsRangeNew / highSpeed) * 3600
+            hsRange = hsRangeNew
+            hsRangeNew = ((((dataStructure['batteryStateOfCharge'].iat[-1] * batteryCapacity) + (dataStructure['solarCurrent'].iat[-1] * dataStructure['solarVoltage'].iat[-1] * highSpeedTime)) * (highSpeed*1000/3600)) / highSpeedPowerConsumption) * (1/1000)
+        hsRange = hsRangeNew
         if (len(hsRangeArray)==0) and np.isnan(hsRange):
             hsRange = 0
         elif np.isnan(hsRange):
@@ -363,10 +394,14 @@ if __name__=="__main__":
         else:
             hsRangeArray = np.append(hsRangeArray, hsRange)
           
-        # Set speed ptimiser to 9999 as an unrealistically high number, as it is not computed in this script
+        # Set speed optimiser to 9999 as an unrealistically high number, as it is not computed in this script
         
         rangessOptimalSpeed = 9999
-
+        
+        ssRange = 9999 if np.isinf(ssRange) else (0 if np.isnan(ssRange) else ssRange)
+        csRange = 9999 if np.isinf(csRange) else (0 if np.isnan(csRange) else csRange)
+        hsRange = 9999 if np.isinf(hsRange) else (0 if np.isnan(hsRange) else hsRange)
+        
         # Convert to float to avoid BLOB in SQL
         ssRange = float(ssRange)
         csRange = float(csRange)
@@ -379,13 +414,14 @@ if __name__=="__main__":
 
         # SQL query to insert data into the table
         insert_query = '''
-        INSERT INTO range_estimates_simplified_ML (timestamp, ssRange, csRange, hsRange, optimalSpeed)
+        INSERT INTO range_estimates_simple_ML_model (timestamp, ssRange, csRange, hsRange, optimalSpeed)
         VALUES (?, ?, ?, ?, ?)
         '''
 
         # Insert data into the table
         cursor.execute(insert_query, (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), ssRange, csRange, hsRange, rangessOptimalSpeed))
-
+        
+        print(ssRange, csRange, hsRange)
         # Commit the changes and close the connection
         conn.commit()
         conn.close()
