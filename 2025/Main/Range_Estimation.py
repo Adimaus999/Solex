@@ -409,10 +409,10 @@ def computeRange(speedOfInterest, consumptionRate, rangeEstArray):
         # Set up an iteration counter for the solver incacse of diverging range estimates
         iteration_count = 0
         # Prevent infinite looping
-        max_iterations = 100  
+        max_iterations = 1000  
 
         # Continue to re-evaluate the range estimate whilst the difference between outputs is greater than 400m and the iteration count is less than the maximum number of iterations
-        while (abs(newRangeEst - rangeEstInitial)>0.4) and iteration_count < max_iterations:
+        while (abs(newRangeEst - rangeEstInitial)>0.1) and iteration_count < max_iterations:
             rangeEstInitial = newRangeEst
             time = rangeEstInitial / speedOfInterest
             newRangeEst = (((batteryStateOfCharge * batteryCapacity) + (solarVAv * solarIAv * time)) * speedOfInterest) / consumptionRate
@@ -880,6 +880,11 @@ if __name__ == "__main__":
 
         #rangessOptimalSpeed = 9999
 
+        csRange = 9999 if np.isinf(csRange) else (0 if np.isnan(csRange) else csRange)
+        ssRange = 9999 if np.isinf(ssRange) else (0 if np.isnan(ssRange) else ssRange)
+        hsRange = 9999 if np.isinf(hsRange) else (0 if np.isnan(hsRange) else hsRange)
+        rangessOptimalSpeed = 9999 if np.isinf(rangessOptimalSpeed) else (0 if np.isnan(rangessOptimalSpeed) else rangessOptimalSpeed)
+                        
         # Convert to float to avoid BLOB in SQL
         ssRange = float(ssRange)
         csRange = float(csRange)
