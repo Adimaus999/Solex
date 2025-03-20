@@ -18,7 +18,13 @@ import subprocess
 import logging
 from PyQt6.QtGui import QFont, QPalette, QColor
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(
+    level=logging.DEBUG,  # Set the log level
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',  # Log format
+    handlers=[
+        logging.FileHandler("app.log"),  # Write logs to a file
+    ]
+)
 
 ADAFRUIT_AIO_USERNAME = "SolarBoatExeter"
 ADAFRUIT_AIO_KEY = "aio_TJII20zIAcuDb7d3TULIPmtmdpKA"
@@ -36,20 +42,20 @@ ADAFRUIT_FEED_KEYS = {
 class MessageWindow(QMainWindow):
     def __init__(self, message, parent_window):
         super().__init__()
-        print("Initializing MessageWindow")  # Debug print statement
+        logging.info("Initializing MessageWindow")  # Debug logging statement
         uic.loadUi("Message.ui", self)  # Ensure the Message.ui file is in the correct location
         self.message_label = self.findChild(QLabel, 'label_3')  # Ensure the QLabel is named 'label_3' in the .ui file
         self.showFullScreen()
         if self.message_label:
-            print(f"Setting message: {message}")  # Debug print statement
+            logging.info(f"Setting message: {message}")  # Debug logging statement
             self.message_label.setText(message)
         else:
-            print("QLabel 'label_3' not found in Message.ui")
+            logging.error("QLabel 'label_3' not found in Message.ui")
         self.parent_window = parent_window
         QTimer.singleShot(10000, self.close_message_window)  # Close the window after 10 seconds
         
     def close_message_window(self):
-        print("Closing MessageWindow")  # Debug print statement
+        logging.info("Closing MessageWindow")  # Debug logging statement
         self.close()
         self.parent_window.show()
 
@@ -97,9 +103,9 @@ class RemainingWindow(QMainWindow):
         # Find the QLabel widget for label_8
         self.label_2 = self.findChild(QLabel, 'label_2')
         if self.label_2 is None:
-            print("QLabel label_2 not found!")
+            logging.error("QLabel label_2 not found!")
         else:
-            print("QLabel label_2 found!")
+            logging.info("QLabel label_2 found!")
             # Set the font for label_2
             font = QFont("Segoe UI", 28, QFont.Weight.Bold)
             self.label_2.setFont(font)
@@ -136,9 +142,9 @@ class RemainingWindow(QMainWindow):
 
                     '''
                     cursor.execute(create_table_query)
-                    print("Table created successfully.")
+                    logging.info("Table created successfully.")
                 else:
-                    print("Table already exists.")
+                    logging.error("Table already exists.")
 
                 # Commit the changes and close the connection
                 conn.commit()
@@ -197,10 +203,10 @@ class RemainingWindow(QMainWindow):
                     return result[0] if result and result[0] is not None else np.nan
 
                 except sqlite3.Error as e:
-                    print(f"Database error: {e}")
+                    logging.error(f"Database error: {e}")
                     return np.nan  
                 except Exception as e:
-                    print(f"Error: {e}")
+                    logging.error(f"Error: {e}")
                     return np.nan
 
     def return_to_main_window(self):
@@ -260,9 +266,9 @@ class PlotSelectionWindow(QMainWindow):
         # Find the QLabel widget for label_4
         self.label_4 = self.findChild(QLabel, 'label_4')
         if self.label_4 is None:
-            print("QLabel label_4 not found!")
+            logging.error("QLabel label_4 not found!")
         else:
-            print("QLabel label_4 found!")
+            logging.info("QLabel label_4 found!")
             # Set the font for label_4
             font = QFont("Segoe UI", 28, QFont.Weight.Bold)
             self.label_4.setFont(font)
@@ -486,11 +492,11 @@ class MapWindow(QMainWindow):
         self.second_window = second_window
         self.webView = self.findChild(QWebEngineView, 'webView')
         self.webView.setUrl(QUrl("http://localhost:8000/map.html"))
+        self.webView.loadFinished.connect(self.on_load_finished)
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_location)
         self.timer.start(2000)  # Update every 2 seconds
         self.update_location()
-        self.showFullScreen()
 
         # Find the QPushButton widget for returning to the main window
         self.pushButton = self.findChild(QPushButton, 'pushButton')
@@ -509,12 +515,16 @@ class MapWindow(QMainWindow):
         # Find the QLabel widget for label_3
         self.label_3 = self.findChild(QLabel, 'label_3')
         if self.label_3 is None:
-            print("QLabel label_3 not found!")
+            logging.error("QLabel label_3 not found!")
         else:
-            print("QLabel label_3 found!")
+            logging.info("QLabel label_3 found!")
             # Set the font for label_3
             font = QFont("Segoe UI", 28, QFont.Weight.Bold)
             self.label_3.setFont(font)
+
+    def on_load_finished(self, success):
+        if not success:
+            logging.error("Failed to load map.html. Please ensure the local server is running and serving the file.")
 
     def update_location(self):
         try:
@@ -601,9 +611,9 @@ class SecondWindow(QMainWindow):
         # Find the QLabel widget for label_4
         self.label_4 = self.findChild(QLabel, 'label_4')
         if self.label_4 is None:
-            print("QLabel label_4 not found!")
+            logging.error("QLabel label_4 not found!")
         else:
-            print("QLabel label_4 found!")
+            logging.info("QLabel label_4 found!")
             # Set the font for label_4
             font = QFont("Segoe UI", 14, QFont.Weight.Bold)
             self.label_4.setFont(font)
@@ -611,9 +621,9 @@ class SecondWindow(QMainWindow):
         # Find the QLabel widget for label_8
         self.label_8 = self.findChild(QLabel, 'label_8')
         if self.label_8 is None:
-            print("QLabel label_8 not found!")
+            logging.error("QLabel label_8 not found!")
         else:
-            print("QLabel label_8 found!")
+            logging.info("QLabel label_8 found!")
             # Set the font for label_8
             font = QFont("Segoe UI", 14, QFont.Weight.Bold)
             self.label_8.setFont(font)
@@ -621,9 +631,9 @@ class SecondWindow(QMainWindow):
         # Find the QLabel widget for label_23
         self.label_23 = self.findChild(QLabel, 'label_23')
         if self.label_23 is None:
-            print("QLabel label_23 not found!")
+            logging.error("QLabel label_23 not found!")
         else:
-            print("QLabel label_23 found!")
+            logging.info("QLabel label_23 found!")
             # Set the font for label_23
             font = QFont("Segoe UI", 14, QFont.Weight.Bold)
             self.label_23.setFont(font)
@@ -631,9 +641,9 @@ class SecondWindow(QMainWindow):
         # Find the QLabel widget for label_19
         self.label_19 = self.findChild(QLabel, 'label_19')
         if self.label_19 is None:
-            print("QLabel label_19 not found!")
+            logging.error("QLabel label_19 not found!")
         else:
-            print("QLabel label_19 found!")
+            logging.info("QLabel label_19 found!")
             # Set the font for label_19
             font = QFont("Segoe UI", 14, QFont.Weight.Bold)
             self.label_19.setFont(font)
@@ -641,9 +651,9 @@ class SecondWindow(QMainWindow):
         # Find the QLabel widget for label_33
         self.label_33 = self.findChild(QLabel, 'label_33')
         if self.label_33 is None:
-            print("QLabel label_33 not found!")
+            logging.error("QLabel label_33 not found!")
         else:
-            print("QLabel label_33 found!")
+            logging.info("QLabel label_33 found!")
             # Set the font for label_33
             font = QFont("Segoe UI", 14, QFont.Weight.Bold)
             self.label_33.setFont(font)
@@ -651,9 +661,9 @@ class SecondWindow(QMainWindow):
         # Find the QLabel widget for label_2
         self.label_2 = self.findChild(QLabel, 'label_2')
         if self.label_2 is None:
-            print("QLabel label_2 not found!")
+            logging.error("QLabel label_2 not found!")
         else:
-            print("QLabel label_2 found!")
+            logging.info("QLabel label_2 found!")
             # Set the font for label_2
             font = QFont("Segoe UI", 28, QFont.Weight.Bold)
             self.label_2.setFont(font)
@@ -864,16 +874,7 @@ class MyApp(QMainWindow):
         except Exception as e:
             logging.error(f"Failed to load Pilot_UI.ui: {e}")
             raise
-        
-        try:
-            os.system('taskkill /IM osk.exe /F')
-            #logging.info("On-screen keyboard closed")
-        except OSError as e:
-            logging.error(f"OS error: {e}")
-        except Exception as e:
-            logging.error(f"Unexpected error: {e}")
             
-        self.showFullScreen()
         # Set up a QTimer to update values from the database periodically
         self.update_timer = QTimer(self)
         self.update_timer.timeout.connect(self.update_values_from_db)
@@ -891,7 +892,7 @@ class MyApp(QMainWindow):
         assert self.dial is not None, "QDial not found!"
         self.dial.setMaximum(20)  # Set the maximum value of the dial to 20
 
-        # Customize the QDial using stylesheets
+        #Customize the QDial using stylesheets
         self.dial.setStyleSheet("""
             QDial {
                 background-color: #F81E01;  /* Background color */
@@ -901,7 +902,7 @@ class MyApp(QMainWindow):
                 height: 100px;  /* Height of the dial */
             }
             QDial::handle {
-                background-color: #F81E01;  /* Handle color */
+            background-color: #F81E01;  /* Handle color */
                 border: 1px solid #1E1E1E;  /* Handle border color */
                 border-radius: 5px;  /* Handle border radius */
                 width: 10px;  /* Width of the handle */
@@ -911,7 +912,7 @@ class MyApp(QMainWindow):
 
         # Initialize the Speed variable
         self.Speed = round(self.SQLread(10), 2)
-        print(self.Speed)
+        logging.info(self.Speed)
 
         # Set the initial value of the dial to the Speed value
         self.dial.setValue(int(round(self.Speed)))
@@ -939,9 +940,9 @@ class MyApp(QMainWindow):
          # Find the QPushButton widget for opening the Remaining window
         self.pushButton_2 = self.findChild(QPushButton, 'pushButton_2')
         if self.pushButton_2 is None:
-            print("QPushButton_2 not found!")
+            logging.error("QPushButton_2 not found!")
         else:
-            print("QPushButton_2 found!")
+            logging.info("QPushButton_2 found!")
             self.pushButton_2.clicked.connect(self.open_remaining_window)
 
         self.progressBar.setMaximum(100)  # Set the maximum value of the progress bar to 100
@@ -1056,24 +1057,24 @@ class MyApp(QMainWindow):
         sqlquery = '''SELECT optimalSpeed FROM range_estimates ORDER BY datetime(timestamp) DESC LIMIT 1'''
         cursor.execute(sqlquery)
         self.OptimalSpeed = round((cursor.fetchone()[0]), 2)
-        print(self.OptimalSpeed)
+        logging.info(self.OptimalSpeed)
         conn.close()
 
         # Find the QLabel widget for label_21
         self.label_21 = self.findChild(QLabel, 'label_21')  
         if self.label_21 is None:
-            print("QLabel label_21 not found!")
+            logging.error("QLabel label_21 not found!")
         else:
-            print("QLabel label_21 found!")
+            logging.info("QLabel label_21 found!")
             # Update the color of label_21 based on the comparison between range_ and remaining
             self.update_label_21_color()
 
         # Find the QLabel widget for label_16
         self.label_16 = self.findChild(QLabel, 'label_16')
         if self.label_16 is None:
-            print("QLabel label_16 not found!")
+            logging.error("QLabel label_16 not found!")
         else:
-            print("QLabel label_16 found!")
+            logging.info("QLabel label_16 found!")
             # Set the font for label_16
             font = QFont("Segoe UI", 22, QFont.Weight.Bold)
             self.label_16.setFont(font)
@@ -1081,9 +1082,9 @@ class MyApp(QMainWindow):
         # Find the QLabel widget for label_17
         self.label_17 = self.findChild(QLabel, 'label_17')
         if self.label_17 is None:
-            print("QLabel label_17 not found!")
+            logging.error("QLabel label_17 not found!")
         else:
-            print("QLabel label_17 found!")
+            logging.info("QLabel label_17 found!")
             # Set the font for label_17
             font = QFont("Segoe UI", 22, QFont.Weight.Bold)
             self.label_17.setFont(font)
@@ -1091,9 +1092,9 @@ class MyApp(QMainWindow):
         # Find the QLabel widget for label_16
         self.label_18 = self.findChild(QLabel, 'label_18')
         if self.label_18 is None:
-            print("QLabel label_18 not found!")
+            logging.error("QLabel label_18 not found!")
         else:
-            print("QLabel label_18 found!")
+            logging.info("QLabel label_18 found!")
             # Set the font for label_18
             font = QFont("Segoe UI", 22, QFont.Weight.Bold)
             self.label_18.setFont(font)
@@ -1108,7 +1109,7 @@ class MyApp(QMainWindow):
 
         # Connect the button's clicked signal to a slot
         self.pushButton.clicked.connect(self.open_second_window)
-        print("Connected clicked signal to open_second_window slot")
+        logging.info("Connected clicked signal to open_second_window slot")
 
         # Set up a QTimer to send latitude and longitude to OpenCPN periodically
         self.timer = QTimer(self)
@@ -1156,7 +1157,7 @@ class MyApp(QMainWindow):
             #logging.info("Second window values updated from main window")
 
     def update_values_from_db(self):
-        print("Updating values from database")
+        logging.info("Updating values from database")
         try:
             self.Speed = round(self.SQLread(10), 2)
             self.label.setText(f"{self.Speed}")
@@ -1211,7 +1212,7 @@ class MyApp(QMainWindow):
             sqlquery = '''SELECT optimalSpeed FROM range_estimates ORDER BY datetime(timestamp) DESC LIMIT 1'''
             cursor.execute(sqlquery)
             self.OptimalSpeed = round((cursor.fetchone()[0]), 2)
-            print(self.OptimalSpeed)
+            logging.info(self.OptimalSpeed)
             conn.close()
 
             self.MotorCurrent = round(self.SQLread(18), 2)
@@ -1282,10 +1283,10 @@ class MyApp(QMainWindow):
                     return result[0] if result and result[0] is not None else 'No data'
 
                 except sqlite3.Error as e:
-                    print(f"Database error: {e}")
+                    logging.error(f"Database error: {e}")
                     return 'No data' 
                 except Exception as e:
-                    print(f"Error: {e}")
+                    logging.error(f"Error: {e}")
                     return 'No data'
         
     def SQLread(self, sensor_id, db_path="SoleX_Database.db", table_name="sensor_data"):
@@ -1314,10 +1315,10 @@ class MyApp(QMainWindow):
             return result[0] if result and result[0] is not None else np.nan
 
         except sqlite3.Error as e:
-            print(f"Database error: {e}")
+            logging.error(f"Database error: {e}")
             return np.nan  
         except Exception as e:
-            print(f"Error: {e}")
+            logging.error(f"Error: {e}")
             return np.nan
 
     def open_remaining_window(self):
@@ -1580,9 +1581,9 @@ if __name__ == "__main__":
         )
         '''
         cursor.execute(create_table_query)
-        print("Table created successfully.")
+        logging.info("Table created successfully.")
     else:
-        print("Table already exists.")
+        logging.error("Table already exists.")
     
     # Commit the changes and close the connection
     conn.commit()
@@ -1620,9 +1621,9 @@ if __name__ == "__main__":
 
         '''
         cursor.execute(create_table_query)
-        print("Table created successfully.")
+        logging.info("Table created successfully.")
     else:
-        print("Table already exists.")
+        logging.error("Table already exists.")
 
     # Commit the changes and close the connection
     conn.commit()
