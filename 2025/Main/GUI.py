@@ -71,34 +71,31 @@ class RemainingWindow(QMainWindow):
         assert self.remaining_input is not None, "QLineEdit for remaining input not found!"
         self.remaining_input.returnPressed.connect(self.update_remaining)
 
+        # Connect number buttons to the handler
+        for i in range(2, 12):
+            button = self.findChild(QPushButton, f'pushButton_{i}')
+            assert button is not None, f"QPushButton_{i} not found!"
+            button.clicked.connect(lambda _, num=i-1: self.append_number(num))
+
+        # Connect the enter button
+        self.pushButton_12 = self.findChild(QPushButton, 'pushButton_12')
+        assert self.pushButton_12 is not None, "QPushButton_12 not found!"
+        self.pushButton_12.clicked.connect(self.update_remaining)
+
         # Find the QPushButton widget for returning to the main window
         self.pushButton = self.findChild(QPushButton, 'pushButton')
         assert self.pushButton is not None, "QPushButton not found!"
         self.pushButton.clicked.connect(self.return_to_main_window)
         self.showFullScreen()
+
+    def append_number(self, num):
+        current_text = self.remaining_input.text()
+        self.remaining_input.setText(current_text + str(num))
+
     def showEvent(self, event):
         super().showEvent(event)
         if self.remaining_input is not None:
             self.remaining_input.setFocus()
-            self.open_osk()
-
-    def open_osk(self):
-        try:
-            os.system('start osk')
-            #logging.info("On-screen keyboard opened")
-        except OSError as e:
-            logging.error(f"OS error: {e}")
-        except Exception as e:
-            logging.error(f"Unexpected error: {e}")
-
-    def close_osk(self):
-        try:
-            os.system('taskkill /IM osk.exe /F')
-            #logging.info("On-screen keyboard closed")
-        except OSError as e:
-            logging.error(f"OS error: {e}")
-        except Exception as e:
-            logging.error(f"Unexpected error: {e}")
 
     def update_remaining(self):
         if self.remaining_input is not None:
@@ -146,11 +143,12 @@ class RemainingWindow(QMainWindow):
                 self.main_window.remaining_label.setText(f"{self.main_window.Remaining} km")
                 self.main_window.update_label_21_color()
                 #logging.info(f"Remaining updated to: {self.main_window.Remaining}")
-                self.close_osk()
                 self.close()
                 self.main_window.show()
 
                 subprocess.Popen(["powershell", "-NoExit", "-Command", "python Range_Estimation.py"])
+                subprocess.Popen(["powershell", "-NoExit", "-Command", "python separate_SQL_range_estimator_no_ML.py"])
+                subprocess.Popen(["powershell", "-NoExit", "-Command", "python separate_SQL_simplified_ML_range_estimator.py"])
 
             except ValueError:
                 logging.error("Invalid input for Remaining")
@@ -193,6 +191,156 @@ class RemainingWindow(QMainWindow):
         self.close()
         self.main_window.show()
 
+
+class PlotSelectionWindow(QMainWindow):
+    def __init__(self, battery_time_plot_window, solar_power_plot_window, motor_power_plot_window, auxiliary_power_plot_window, second_window):
+        super().__init__()
+        try:
+            uic.loadUi("Plot_Selection.ui", self)  # Load the Plot_Selection UI file
+        except Exception as e:
+            logging.error(f"Failed to load Plot_Selection.ui: {e}")
+            raise
+        self.battery_time_plot_window = battery_time_plot_window
+        self.solar_power_plot_window = solar_power_plot_window
+        self.motor_power_plot_window = motor_power_plot_window
+        self.auxiliary_power_plot_window = auxiliary_power_plot_window
+        self.second_window = second_window  # Store the reference to the SecondWindow
+
+        # Find the QPushButton widget for opening the battery time plot window
+        self.pushButton = self.findChild(QPushButton, 'pushButton')
+        assert self.pushButton is not None, "QPushButton not found!"
+        self.pushButton.clicked.connect(self.open_battery_time_plot)
+
+        # Find the QPushButton widget for opening the solar power plot window
+        self.pushButton_2 = self.findChild(QPushButton, 'pushButton_2')
+        assert self.pushButton_2 is not None, "QPushButton_2 not found!"
+        self.pushButton_2.clicked.connect(self.open_solar_power_plot)
+
+        # Find the QPushButton widget for opening the motor power plot window
+        self.pushButton_3 = self.findChild(QPushButton, 'pushButton_3')
+        assert self.pushButton_3 is not None, "QPushButton_3 not found!"
+        self.pushButton_3.clicked.connect(self.open_motor_power_plot)
+
+        # Find the QPushButton widget for opening the auxiliary power plot window
+        self.pushButton_4 = self.findChild(QPushButton, 'pushButton_4')
+        assert self.pushButton_4 is not None, "QPushButton_4 not found!"
+        self.pushButton_4.clicked.connect(self.open_auxiliary_power_plot)
+
+         # Find the QPushButton widget for returning to the second window
+        self.pushButton_5 = self.findChild(QPushButton, 'pushButton_5')
+        assert self.pushButton_5 is not None, "QPushButton_5 not found!"
+        self.pushButton_5.clicked.connect(self.open_second_window)
+
+    def open_battery_time_plot(self):
+        self.battery_time_plot_window.show_window()
+
+    def open_solar_power_plot(self):
+        self.solar_power_plot_window.show_window()
+
+    def open_motor_power_plot(self):
+        self.motor_power_plot_window.show_window()
+
+    def open_auxiliary_power_plot(self):
+        self.auxiliary_power_plot_window.show_window()
+
+    def open_second_window(self):
+        self.hide()
+        self.second_window.show()
+
+class SolarPowerPlotWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        try:
+            uic.loadUi("SolarPowerPlot.ui", self)  # Load the SolarPowerPlot UI file
+        except Exception as e:
+            logging.error(f"Failed to load SolarPowerPlot.ui: {e}")
+            raise
+        self.plot_widget = self.findChild(QWidget, 'widget')
+        self.plot_layout = QVBoxLayout(self.plot_widget)
+        self.plot = pg.PlotWidget()
+        self.plot_layout.addWidget(self.plot)
+        self.plot.setLabel('left', 'Value')
+        self.plot.setLabel('bottom', 'Time (seconds)')
+        self.plot.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.plot_widget.setLayout(self.plot_layout)
+        self.data = deque(maxlen=200)
+        self.start_time = datetime.now()  # Store the start time
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_plot)
+        self.timer.start(1000)  # Update every second
+
+    def show_window(self):
+        self.show()
+
+    def update_plot(self):
+        try:
+            logging.debug("update_plot called")
+            self.plot.clear()
+            if self.data:
+                elapsed_times = [(x[4] - self.start_time).total_seconds() for x in self.data]
+                solar_powers = [x[2] for x in self.data]
+                logging.debug(f"Elapsed times: {elapsed_times}")
+                logging.debug(f"Solar Powers: {solar_powers}")
+
+                # Plot data
+                self.plot.plot(elapsed_times, solar_powers, pen=pg.mkPen(color='y', width=2), name="Solar Power")
+
+                # Add text label in the top corner with the latest solar power value
+                solar_power_text = pg.TextItem(text=f"Solar Power: {solar_powers[-1]:.2f}", color='y', anchor=(1, 1))
+                solar_power_text.setPos(elapsed_times[-1], max(solar_powers))
+                self.plot.addItem(solar_power_text)
+
+                self.plot.setYRange(0, max(solar_powers) * 1.1)  # Set y-axis range slightly above the max solar power value
+        except Exception as e:
+            logging.error(f"Error updating plot: {e}")
+
+class MotorPowerPlotWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        try:
+            uic.loadUi("MotorPowerPlot.ui", self)  # Load the MotorPowerPlot UI file
+        except Exception as e:
+            logging.error(f"Failed to load MotorPowerPlot.ui: {e}")
+            raise
+        self.plot_widget = self.findChild(QWidget, 'widget')
+        self.plot_layout = QVBoxLayout(self.plot_widget)
+        self.plot = pg.PlotWidget()
+        self.plot_layout.addWidget(self.plot)
+        self.plot.setLabel('left', 'Value')
+        self.plot.setLabel('bottom', 'Time (seconds)')
+        self.plot.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.plot_widget.setLayout(self.plot_layout)
+        self.data = deque(maxlen=200)
+        self.start_time = datetime.now()  # Store the start time
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_plot)
+        self.timer.start(1000)  # Update every second
+
+    def show_window(self):
+        self.show()
+
+    def update_plot(self):
+        try:
+            logging.debug("update_plot called")
+            self.plot.clear()
+            if self.data:
+                elapsed_times = [(x[4] - self.start_time).total_seconds() for x in self.data]
+                motor_powers = [x[1] for x in self.data]
+                logging.debug(f"Elapsed times: {elapsed_times}")
+                logging.debug(f"Motor Powers: {motor_powers}")
+
+                # Plot data
+                self.plot.plot(elapsed_times, motor_powers, pen=pg.mkPen(color='b', width=2), name="Motor Power")
+
+                # Add text label in the top corner with the latest motor power value
+                motor_power_text = pg.TextItem(text=f"Motor Power: {motor_powers[-1]:.2f}", color='b', anchor=(1, 1))
+                motor_power_text.setPos(elapsed_times[-1], max(motor_powers))
+                self.plot.addItem(motor_power_text)
+
+                self.plot.setYRange(0, max(motor_powers) * 1.1)  # Set y-axis range slightly above the max motor power value
+        except Exception as e:
+            logging.error(f"Error updating plot: {e}")
+
 # Commit restart
 class BatteryTimePlotWindow(QMainWindow):
     def __init__(self):
@@ -215,6 +363,9 @@ class BatteryTimePlotWindow(QMainWindow):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_plot)
         self.timer.start(1000)  # Update every second
+
+    def show_window(self):
+        self.show()
         
     def update_plot(self):
         try:
@@ -223,39 +374,65 @@ class BatteryTimePlotWindow(QMainWindow):
             if self.data:
                 elapsed_times = [(x[4] - self.start_time).total_seconds() for x in self.data]
                 charges = [x[0] for x in self.data]
-                motor_powers = [x[1] for x in self.data]
-                solar_powers = [x[2] for x in self.data]
-                aux_powers = [x[3] for x in self.data]
                 logging.debug(f"Elapsed times: {elapsed_times}")
                 logging.debug(f"Charges: {charges}")
-                logging.debug(f"Motor Powers: {motor_powers}")
-                logging.debug(f"Solar Powers: {solar_powers}")
-                logging.debug(f"Auxiliary Powers: {aux_powers}")
 
                 # Plot data
                 self.plot.plot(elapsed_times, charges, pen=pg.mkPen(color='r', width=2), name="Battery Charge")
-                self.plot.plot(elapsed_times, motor_powers, pen=pg.mkPen(color='g', width=2), name="Motor Power")
-                self.plot.plot(elapsed_times, solar_powers, pen=pg.mkPen(color='w', width=2), name="Solar Power")
-                self.plot.plot(elapsed_times, aux_powers, pen=pg.mkPen(color='y', width=2), name="Auxiliary Power")
 
-               # Add text labels in the top corner with values
+               # Add text label in the top corner with the latest battery charge value
                 soc_text = pg.TextItem(text=f"SOC: {charges[-1]:.2f}", color='r', anchor=(1, 1))
-                soc_text.setPos(elapsed_times[-1], 2500)
+                soc_text.setPos(elapsed_times[-1], max(charges))
                 self.plot.addItem(soc_text)
 
-                motor_text = pg.TextItem(text=f"Motor: {motor_powers[-1]:.2f}", color='g', anchor=(1, 1))
-                motor_text.setPos(elapsed_times[-1], 2250)
-                self.plot.addItem(motor_text)
+                self.plot.setYRange(0, max(charges) * 1.1)  # Set y-axis range slightly above the max charge value
+        except Exception as e:
+            logging.error(f"Error updating plot: {e}")
 
-                solar_text = pg.TextItem(text=f"Solar: {solar_powers[-1]:.2f}", color='w', anchor=(1, 1))
-                solar_text.setPos(elapsed_times[-1], 2000)
-                self.plot.addItem(solar_text)
+class AuxiliaryPowerPlotWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        try:
+            uic.loadUi("AuxiliaryPowerPlot.ui", self)  # Load the AuxiliaryPowerPlot UI file
+        except Exception as e:
+            logging.error(f"Failed to load AuxiliaryPowerPlot.ui: {e}")
+            raise
+        self.plot_widget = self.findChild(QWidget, 'widget')
+        self.plot_layout = QVBoxLayout(self.plot_widget)
+        self.plot = pg.PlotWidget()
+        self.plot_layout.addWidget(self.plot)
+        self.plot.setLabel('left', 'Value')
+        self.plot.setLabel('bottom', 'Time (seconds)')
+        self.plot.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.plot_widget.setLayout(self.plot_layout)
+        self.data = deque(maxlen=200)
+        self.start_time = datetime.now()  # Store the start time
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_plot)
+        self.timer.start(1000)  # Update every second
 
-                aux_text = pg.TextItem(text=f"Aux: {aux_powers[-1]:.2f}", color='y', anchor=(1, 1))
-                aux_text.setPos(elapsed_times[-1], 1750)
-                self.plot.addItem(aux_text)
+    def show_window(self):
+        self.show()
 
-                self.plot.setYRange(0, 2500)  # Set y-axis range between 0 and 10,000
+    def update_plot(self):
+        try:
+            logging.debug("update_plot called")
+            self.plot.clear()
+            if self.data:
+                elapsed_times = [(x[4] - self.start_time).total_seconds() for x in self.data]
+                auxiliary_powers = [x[3] for x in self.data]
+                logging.debug(f"Elapsed times: {elapsed_times}")
+                logging.debug(f"Auxiliary Powers: {auxiliary_powers}")
+
+                # Plot data
+                self.plot.plot(elapsed_times, auxiliary_powers, pen=pg.mkPen(color='g', width=2), name="Auxiliary Power")
+
+                # Add text label in the top corner with the latest auxiliary power value
+                auxiliary_power_text = pg.TextItem(text=f"Auxiliary Power: {auxiliary_powers[-1]:.2f}", color='g', anchor=(1, 1))
+                auxiliary_power_text.setPos(elapsed_times[-1], max(auxiliary_powers))
+                self.plot.addItem(auxiliary_power_text)
+
+                self.plot.setYRange(0, max(auxiliary_powers) * 1.1)  # Set y-axis range slightly above the max auxiliary power value
         except Exception as e:
             logging.error(f"Error updating plot: {e}")
 
@@ -310,10 +487,13 @@ class MapWindow(QMainWindow):
             logging.error(f"Error opening diagnostics panel: {e}")
 
 class SecondWindow(QMainWindow):
-    def __init__(self, main_window, battery_charge, battery_error, battery_status, motor_current, motor_voltage, temperature, auxilliary_voltage, solar_current, solar_voltage, solar_power, latitude, longitude, speed, acceleration, range_, remaining, motor_power, auxilliary_power, auxilliary_current, range_slow, range_fast, battery_time_plot_window):
+    def __init__(self, main_window, battery_charge, battery_error, battery_status, motor_current, motor_voltage, temperature, auxilliary_voltage, solar_current, solar_voltage, solar_power, latitude, longitude, speed, acceleration, range_, remaining, motor_power, auxilliary_power, auxilliary_current, range_slow, range_fast, battery_time_plot_window, solar_power_plot_window, motor_power_plot_window, auxiliary_power_plot_window):
         super().__init__()
         self.main_window = main_window
         self.battery_time_plot_window = battery_time_plot_window  # Store the passed instance
+        self.solar_power_plot_window = solar_power_plot_window  # Store the passed instance
+        self.motor_power_plot_window = motor_power_plot_window  # Store the passed instance
+        self.auxiliary_power_plot_window = auxiliary_power_plot_window # Store the passed instance
         try:
             uic.loadUi("Diagnostics Panel.ui", self)  # Load the second UI file
             #logging.info("Second window initialized")
@@ -359,7 +539,12 @@ class SecondWindow(QMainWindow):
         # Find the QPushButton widget for opening the battery time plot window
         self.pushButton_6 = self.findChild(QPushButton, 'pushButton_6')
         assert self.pushButton_6 is not None, "QPushButton_6 not found!"
-        self.pushButton_6.clicked.connect(self.open_battery_time_plot)
+        self.pushButton_6.clicked.connect(self.open_plot_selection_window)
+
+    def open_plot_selection_window(self):
+        self.open_plot_selection_window = PlotSelectionWindow(self.battery_time_plot_window, self.solar_power_plot_window, self.motor_power_plot_window, self.auxiliary_power_plot_window, self)
+        self.open_plot_selection_window.show()
+        self.hide()
 
     def update_values_from_db(self):
         try:
@@ -562,8 +747,6 @@ class MyApp(QMainWindow):
         except Exception as e:
             logging.error(f"Failed to load Pilot_UI.ui: {e}")
             raise
-
-
         
         try:
             os.system('taskkill /IM osk.exe /F')
@@ -662,6 +845,9 @@ class MyApp(QMainWindow):
         self.remaining_label.setText(f"{self.Remaining} km")
 
         self.battery_time_plot_window = BatteryTimePlotWindow()
+        self.solar_power_plot_window = SolarPowerPlotWindow()
+        self.motor_power_plot_window = MotorPowerPlotWindow()
+        self.auxiliary_power_plot_window = AuxiliaryPowerPlotWindow()
 
         # Update the label to show the initial Remaining value
         self.remaining_label.setText(f"{self.Remaining} km")
@@ -994,7 +1180,7 @@ class MyApp(QMainWindow):
         auxilliary_current = self.AuxilliaryCurrent # Pass the Auxilliary Current value
         range_slow = self.RangeSlow # Pass the Range Slow value
         range_fast = self.RangeFast # Pass the Range Fast value
-        self.second_window = SecondWindow(self, battery_charge, battery_error, battery_status, motor_current, motor_voltage, temperature, auxilliary_voltage, solar_current, solar_voltage, solar_power, latitude, longitude, speed, acceleration, range_, remaining, motor_power, auxilliary_power, auxilliary_current, range_slow, range_fast, self.battery_time_plot_window)
+        self.second_window = SecondWindow(self, battery_charge, battery_error, battery_status, motor_current, motor_voltage, temperature, auxilliary_voltage, solar_current, solar_voltage, solar_power, latitude, longitude, speed, acceleration, range_, remaining, motor_power, auxilliary_power, auxilliary_current, range_slow, range_fast, self.battery_time_plot_window, self.solar_power_plot_window, self.motor_power_plot_window, self.auxiliary_power_plot_window)
         self.second_window.show()
         self.hide()
         self.update_label_21_color()  # Update the color when opening the second window
@@ -1129,9 +1315,12 @@ class MyApp(QMainWindow):
             try:
                 #logging.info(f"Appending data to plot: {self.BatteryCharge}, {datetime.now()}")
                 self.battery_time_plot_window.data.append((self.BatteryCharge, self.MotorPower, self.SolarPower, self.AuxilliaryPower, datetime.now()))
+                self.solar_power_plot_window.data.append((self.BatteryCharge, self.MotorPower, self.SolarPower, self.AuxilliaryPower, datetime.now()))
+                self.motor_power_plot_window.data.append((self.BatteryCharge, self.MotorPower, self.SolarPower, self.AuxilliaryPower, datetime.now()))
+                self.auxiliary_power_plot_window.data.append((self.BatteryCharge, self.MotorPower, self.SolarPower, self.AuxilliaryPower, datetime.now()))
                 #logging.info(f"Data appended to plot: {self.battery_time_plot_window.data}")
             except Exception as e:
-                logging.error(f"Error updating battery time plot data: {e}")
+                logging.error(f"Error updating plot data: {e}")
 
     def format_nmea_latitude(self, latitude):
         try:
