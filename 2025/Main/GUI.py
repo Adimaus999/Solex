@@ -16,7 +16,7 @@ import os
 import requests
 import subprocess
 import logging
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QPalette, QColor
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -75,18 +75,34 @@ class RemainingWindow(QMainWindow):
         for i in range(2, 12):
             button = self.findChild(QPushButton, f'pushButton_{i}')
             assert button is not None, f"QPushButton_{i} not found!"
+            font = QFont("Segoe UI", 18, QFont.Weight.Bold)
+            button.setFont(font)
             button.clicked.connect(lambda _, num=i-1: self.append_number(num))
-
+            
         # Connect the enter button
         self.pushButton_12 = self.findChild(QPushButton, 'pushButton_12')
         assert self.pushButton_12 is not None, "QPushButton_12 not found!"
         self.pushButton_12.clicked.connect(self.update_remaining)
+        font = QFont("Segoe UI", 18, QFont.Weight.Bold)
+        self.pushButton_12.setFont(font)
 
         # Find the QPushButton widget for returning to the main window
         self.pushButton = self.findChild(QPushButton, 'pushButton')
         assert self.pushButton is not None, "QPushButton not found!"
         self.pushButton.clicked.connect(self.return_to_main_window)
+        font = QFont("Segoe UI", 18, QFont.Weight.Bold)
+        self.pushButton.setFont(font)
         self.showFullScreen()
+
+        # Find the QLabel widget for label_8
+        self.label_2 = self.findChild(QLabel, 'label_2')
+        if self.label_2 is None:
+            print("QLabel label_2 not found!")
+        else:
+            print("QLabel label_2 found!")
+            # Set the font for label_2
+            font = QFont("Segoe UI", 28, QFont.Weight.Bold)
+            self.label_2.setFont(font)
 
     def append_number(self, num):
         current_text = self.remaining_input.text()
@@ -210,26 +226,46 @@ class PlotSelectionWindow(QMainWindow):
         self.pushButton = self.findChild(QPushButton, 'pushButton')
         assert self.pushButton is not None, "QPushButton not found!"
         self.pushButton.clicked.connect(self.open_battery_time_plot)
+        font = QFont("Segoe UI", 22, QFont.Weight.Bold)
+        self.pushButton.setFont(font)
 
         # Find the QPushButton widget for opening the solar power plot window
         self.pushButton_2 = self.findChild(QPushButton, 'pushButton_2')
         assert self.pushButton_2 is not None, "QPushButton_2 not found!"
         self.pushButton_2.clicked.connect(self.open_solar_power_plot)
+        font = QFont("Segoe UI", 22, QFont.Weight.Bold)
+        self.pushButton_2.setFont(font)
 
         # Find the QPushButton widget for opening the motor power plot window
         self.pushButton_3 = self.findChild(QPushButton, 'pushButton_3')
         assert self.pushButton_3 is not None, "QPushButton_3 not found!"
         self.pushButton_3.clicked.connect(self.open_motor_power_plot)
+        font = QFont("Segoe UI", 22, QFont.Weight.Bold)
+        self.pushButton_3.setFont(font)
 
         # Find the QPushButton widget for opening the auxiliary power plot window
         self.pushButton_4 = self.findChild(QPushButton, 'pushButton_4')
         assert self.pushButton_4 is not None, "QPushButton_4 not found!"
         self.pushButton_4.clicked.connect(self.open_auxiliary_power_plot)
+        font = QFont("Segoe UI", 22, QFont.Weight.Bold)
+        self.pushButton_4.setFont(font)
 
          # Find the QPushButton widget for returning to the second window
         self.pushButton_5 = self.findChild(QPushButton, 'pushButton_5')
         assert self.pushButton_5 is not None, "QPushButton_5 not found!"
         self.pushButton_5.clicked.connect(self.open_second_window)
+        font = QFont("Segoe UI", 28, QFont.Weight.Bold)
+        self.pushButton_5.setFont(font)
+
+        # Find the QLabel widget for label_4
+        self.label_4 = self.findChild(QLabel, 'label_4')
+        if self.label_4 is None:
+            print("QLabel label_4 not found!")
+        else:
+            print("QLabel label_4 found!")
+            # Set the font for label_4
+            font = QFont("Segoe UI", 28, QFont.Weight.Bold)
+            self.label_4.setFont(font)
 
     def open_battery_time_plot(self):
         self.battery_time_plot_window.show_window()
@@ -455,15 +491,30 @@ class MapWindow(QMainWindow):
         self.timer.start(2000)  # Update every 2 seconds
         self.update_location()
         self.showFullScreen()
+
         # Find the QPushButton widget for returning to the main window
         self.pushButton = self.findChild(QPushButton, 'pushButton')
         assert self.pushButton is not None, "QPushButton not found!"
         self.pushButton.clicked.connect(self.return_to_main_window)
+        font = QFont("Segoe UI", 18, QFont.Weight.Bold)
+        self.pushButton.setFont(font)
 
         # Find the QPushButton widget for opening the diagnostics panel
         self.pushButton_2 = self.findChild(QPushButton, 'pushButton_2')
         assert self.pushButton_2 is not None, "QPushButton_2 not found!"
         self.pushButton_2.clicked.connect(self.open_diagnostics_panel)
+        font = QFont("Segoe UI", 18, QFont.Weight.Bold)
+        self.pushButton_2.setFont(font)
+
+        # Find the QLabel widget for label_3
+        self.label_3 = self.findChild(QLabel, 'label_3')
+        if self.label_3 is None:
+            print("QLabel label_3 not found!")
+        else:
+            print("QLabel label_3 found!")
+            # Set the font for label_3
+            font = QFont("Segoe UI", 28, QFont.Weight.Bold)
+            self.label_3.setFont(font)
 
     def update_location(self):
         try:
@@ -530,16 +581,82 @@ class SecondWindow(QMainWindow):
         self.pushButton_5 = self.findChild(QPushButton, 'pushButton_5')
         assert self.pushButton_5 is not None, "QPushButton_5 not found!"
         self.pushButton_5.clicked.connect(self.return_to_main_window)
+        font = QFont("Segoe UI", 18, QFont.Weight.Bold)
+        self.pushButton_5.setFont(font)
 
         # Find the QPushButton widget for opening the map window
         self.pushButton_4 = self.findChild(QPushButton, 'pushButton_4')
         assert self.pushButton_4 is not None, "QPushButton_4 not found!"
         self.pushButton_4.clicked.connect(self.open_map_window)
+        font = QFont("Segoe UI", 18, QFont.Weight.Bold)
+        self.pushButton_4.setFont(font)
 
         # Find the QPushButton widget for opening the battery time plot window
         self.pushButton_6 = self.findChild(QPushButton, 'pushButton_6')
         assert self.pushButton_6 is not None, "QPushButton_6 not found!"
         self.pushButton_6.clicked.connect(self.open_plot_selection_window)
+        font = QFont("Segoe UI", 18, QFont.Weight.Bold)
+        self.pushButton_6.setFont(font)
+
+        # Find the QLabel widget for label_4
+        self.label_4 = self.findChild(QLabel, 'label_4')
+        if self.label_4 is None:
+            print("QLabel label_4 not found!")
+        else:
+            print("QLabel label_4 found!")
+            # Set the font for label_4
+            font = QFont("Segoe UI", 14, QFont.Weight.Bold)
+            self.label_4.setFont(font)
+
+        # Find the QLabel widget for label_8
+        self.label_8 = self.findChild(QLabel, 'label_8')
+        if self.label_8 is None:
+            print("QLabel label_8 not found!")
+        else:
+            print("QLabel label_8 found!")
+            # Set the font for label_8
+            font = QFont("Segoe UI", 14, QFont.Weight.Bold)
+            self.label_8.setFont(font)
+
+        # Find the QLabel widget for label_23
+        self.label_23 = self.findChild(QLabel, 'label_23')
+        if self.label_23 is None:
+            print("QLabel label_23 not found!")
+        else:
+            print("QLabel label_23 found!")
+            # Set the font for label_23
+            font = QFont("Segoe UI", 14, QFont.Weight.Bold)
+            self.label_23.setFont(font)
+
+        # Find the QLabel widget for label_19
+        self.label_19 = self.findChild(QLabel, 'label_19')
+        if self.label_19 is None:
+            print("QLabel label_19 not found!")
+        else:
+            print("QLabel label_19 found!")
+            # Set the font for label_19
+            font = QFont("Segoe UI", 14, QFont.Weight.Bold)
+            self.label_19.setFont(font)
+
+        # Find the QLabel widget for label_33
+        self.label_33 = self.findChild(QLabel, 'label_33')
+        if self.label_33 is None:
+            print("QLabel label_33 not found!")
+        else:
+            print("QLabel label_33 found!")
+            # Set the font for label_33
+            font = QFont("Segoe UI", 14, QFont.Weight.Bold)
+            self.label_33.setFont(font)
+
+        # Find the QLabel widget for label_2
+        self.label_2 = self.findChild(QLabel, 'label_2')
+        if self.label_2 is None:
+            print("QLabel label_2 not found!")
+        else:
+            print("QLabel label_2 found!")
+            # Set the font for label_2
+            font = QFont("Segoe UI", 28, QFont.Weight.Bold)
+            self.label_2.setFont(font)
 
     def open_plot_selection_window(self):
         self.open_plot_selection_window = PlotSelectionWindow(self.battery_time_plot_window, self.solar_power_plot_window, self.motor_power_plot_window, self.auxiliary_power_plot_window, self)
@@ -774,6 +891,24 @@ class MyApp(QMainWindow):
         assert self.dial is not None, "QDial not found!"
         self.dial.setMaximum(20)  # Set the maximum value of the dial to 20
 
+        # Customize the QDial using stylesheets
+        self.dial.setStyleSheet("""
+            QDial {
+                background-color: #F81E01;  /* Background color */
+                border: 2px solid #D4D4D4;  /* Border color */
+                border-radius: 10px;  /* Border radius */
+                width: 100px;  /* Width of the dial */
+                height: 100px;  /* Height of the dial */
+            }
+            QDial::handle {
+                background-color: #F81E01;  /* Handle color */
+                border: 1px solid #1E1E1E;  /* Handle border color */
+                border-radius: 5px;  /* Handle border radius */
+                width: 10px;  /* Width of the handle */
+                height: 10px;  /* Height of the handle */
+            }
+        """)
+
         # Initialize the Speed variable
         self.Speed = round(self.SQLread(10), 2)
         print(self.Speed)
@@ -933,10 +1068,42 @@ class MyApp(QMainWindow):
             # Update the color of label_21 based on the comparison between range_ and remaining
             self.update_label_21_color()
 
+        # Find the QLabel widget for label_16
+        self.label_16 = self.findChild(QLabel, 'label_16')
+        if self.label_16 is None:
+            print("QLabel label_16 not found!")
+        else:
+            print("QLabel label_16 found!")
+            # Set the font for label_16
+            font = QFont("Segoe UI", 22, QFont.Weight.Bold)
+            self.label_16.setFont(font)
+
+        # Find the QLabel widget for label_17
+        self.label_17 = self.findChild(QLabel, 'label_17')
+        if self.label_17 is None:
+            print("QLabel label_17 not found!")
+        else:
+            print("QLabel label_17 found!")
+            # Set the font for label_17
+            font = QFont("Segoe UI", 22, QFont.Weight.Bold)
+            self.label_17.setFont(font)
+
+        # Find the QLabel widget for label_16
+        self.label_18 = self.findChild(QLabel, 'label_18')
+        if self.label_18 is None:
+            print("QLabel label_18 not found!")
+        else:
+            print("QLabel label_18 found!")
+            # Set the font for label_18
+            font = QFont("Segoe UI", 22, QFont.Weight.Bold)
+            self.label_18.setFont(font)
+
         # Find the QPushButton widget
         self.pushButton = self.findChild(QPushButton, 'pushButton')  
         assert self.pushButton is not None, "QPushButton not found!"
         self.pushButton.clicked.connect(self.open_second_window)
+        font = QFont("Segoe UI", 14, QFont.Weight.Bold)
+        self.pushButton.setFont(font)
         #logging.info("Connected clicked signal to open_second_window slot")
 
         # Connect the button's clicked signal to a slot
