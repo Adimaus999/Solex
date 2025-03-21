@@ -403,10 +403,14 @@ if __name__=="__main__":
         hsRange = 9999 if np.isinf(hsRange) else (0 if np.isnan(hsRange) else hsRange)
         
         # Convert to float to avoid BLOB in SQL
-        ssRange = float(ssRange)
-        csRange = float(csRange)
-        hsRange = float(hsRange)
-        rangessOptimalSpeed = float(rangessOptimalSpeed)
+        ssRange = np.array(ssRange)
+        ssRange = float(ssRange.flatten()[0])
+        csRange = np.array(csRange)
+        csRange = float(csRange.flatten()[0])
+        hsRange = np.array(hsRange)
+        hsRange = float(hsRange.flatten()[0])
+        rangessOptimalSpeed = np.array(rangessOptimalSpeed)
+        rangessOptimalSpeed = float(rangessOptimalSpeed.flatten()[0])
 
         # Connect to the existing database
         conn = sqlite3.connect('SoleX_Database.db')
