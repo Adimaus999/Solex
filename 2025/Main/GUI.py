@@ -110,6 +110,12 @@ class RemainingWindow(QMainWindow):
             font = QFont("Segoe UI", 28, QFont.Weight.Bold)
             self.label_2.setFont(font)
 
+        # Set up a QTimer to close the window after 30 seconds if no input is provided
+        self.timeout_timer = QTimer(self)
+        self.timeout_timer.setSingleShot(True)
+        self.timeout_timer.timeout.connect(self.timeout_close)
+        self.timeout_timer.start(30000)  # 30 seconds
+
     def append_number(self, num):
         current_text = self.remaining_input.text()
         self.remaining_input.setText(current_text + str(num))
@@ -200,7 +206,7 @@ class RemainingWindow(QMainWindow):
                     conn.close()
 
                     # Return nan if not found
-                    return result[0] if result and result[0] is not None else np.nan
+                    return result[0] if result and result[0] is not None else 0
 
                 except sqlite3.Error as e:
                     logging.error(f"Database error: {e}")
@@ -210,6 +216,14 @@ class RemainingWindow(QMainWindow):
                     return np.nan
 
     def return_to_main_window(self):
+        self.close()
+        self.main_window.show()
+
+    def timeout_close(self):
+        logging.info("Timeout reached, closing RemainingWindow and setting remaining to 50")
+        self.main_window.Remaining = 63
+        self.main_window.remaining_label.setText(f"{self.main_window.Remaining} km")
+        self.main_window.update_label_21_color()
         self.close()
         self.main_window.show()
 
@@ -769,7 +783,7 @@ class SecondWindow(QMainWindow):
             cursor.execute(query, (sensor_id,))
             result = cursor.fetchone()
             conn.close()
-            return result[0] if result and result[0] is not None else np.nan
+            return result[0] if result and result[0] is not None else 0
         except sqlite3.Error as e:
             logging.error(f"Database error: {e}")
             return np.nan  
@@ -1312,7 +1326,7 @@ class MyApp(QMainWindow):
             conn.close()
 
             # Return nan if not found
-            return result[0] if result and result[0] is not None else np.nan
+            return result[0] if result and result[0] is not None else 0
 
         except sqlite3.Error as e:
             logging.error(f"Database error: {e}")
