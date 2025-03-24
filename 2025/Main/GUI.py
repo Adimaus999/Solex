@@ -64,6 +64,7 @@ class RemainingWindow(QMainWindow):
         super().__init__()
         try:
             uic.loadUi("Remaining.ui", self)  # Load the Remaining UI file
+            self.showFullScreen()
         except Exception as e:
             logging.error(f"Failed to load Remaining.ui: {e}")
             raise
@@ -233,6 +234,7 @@ class PlotSelectionWindow(QMainWindow):
         super().__init__()
         try:
             uic.loadUi("Plot_Selection.ui", self)  # Load the Plot_Selection UI file
+            self.showFullScreen()
         except Exception as e:
             logging.error(f"Failed to load Plot_Selection.ui: {e}")
             raise
@@ -497,6 +499,7 @@ class MapWindow(QMainWindow):
         super().__init__()
         try:
             uic.loadUi("Map.ui", self)  # Load the map UI file
+            self.showFullScreen()
         except Exception as e:
             logging.error(f"Failed to load Map.ui: {e}")
             raise
@@ -885,6 +888,7 @@ class MyApp(QMainWindow):
         self.lock = threading.Lock()
         try:
             uic.loadUi("Pilot_UI.ui", self)  # Load the UI file
+            self.showFullScreen()
         except Exception as e:
             logging.error(f"Failed to load Pilot_UI.ui: {e}")
             raise
@@ -1244,7 +1248,7 @@ class MyApp(QMainWindow):
             self.AuxilliaryCurrent = round(self.SQLread(24), 2)
 
             self.update_label_21_color()
-            #logging.info("Values updated from database")
+            logging.info("Values updated from database")
         except Exception as e:
                 logging.error(f"Error updating values from database: {e}")
 
