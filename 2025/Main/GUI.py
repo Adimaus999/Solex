@@ -64,7 +64,6 @@ class RemainingWindow(QMainWindow):
         super().__init__()
         try:
             uic.loadUi("Remaining.ui", self)  # Load the Remaining UI file
-            self.showFullScreen()
         except Exception as e:
             logging.error(f"Failed to load Remaining.ui: {e}")
             raise
