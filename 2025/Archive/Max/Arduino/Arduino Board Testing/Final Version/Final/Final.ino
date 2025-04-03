@@ -19,8 +19,8 @@ const float VREF = 4.54;
 const float R1 = 226500; // 220k ohms
 const float R2 = 12080;  // 12k ohms
 
-const float Aux_Coils = 10;
-const float Solar_Coils = 2;
+const float Aux_Coils = 1;
+const float Solar_Coils = 1;
 
 // Define the delay between cycles in milliseconds
 const int cycleDelay = 1000; // 10 times per second
