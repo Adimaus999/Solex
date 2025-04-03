@@ -481,7 +481,7 @@
       <x>0</x>
       <y>0</y>
       <width>1021</width>
-      <height>341</height>
+      <height>261</height>
      </rect>
     </property>
     <property name="font">
@@ -969,10 +969,10 @@ QProgressBar::chunk {
    <widget class="QWidget" name="">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>350</y>
-      <width>1011</width>
-      <height>301</height>
+      <x>0</x>
+      <y>270</y>
+      <width>1021</width>
+      <height>251</height>
      </rect>
     </property>
     <layout class="QGridLayout" name="gridLayout">
