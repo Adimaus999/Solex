@@ -16,9 +16,15 @@ import os
 import requests
 import subprocess
 import logging
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QPalette, QColor
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(
+    level=logging.DEBUG,  # Set the log level
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',  # Log format
+    handlers=[
+        logging.FileHandler("app.log"),  # Write logs to a file
+    ]
+)
 
 ADAFRUIT_AIO_USERNAME = "SolarBoatExeter"
 ADAFRUIT_AIO_KEY = "aio_TJII20zIAcuDb7d3TULIPmtmdpKA"
@@ -36,19 +42,20 @@ ADAFRUIT_FEED_KEYS = {
 class MessageWindow(QMainWindow):
     def __init__(self, message, parent_window):
         super().__init__()
-        print("Initializing MessageWindow")  # Debug print statement
+        logging.info("Initializing MessageWindow")  # Debug logging statement
         uic.loadUi("Message.ui", self)  # Ensure the Message.ui file is in the correct location
         self.message_label = self.findChild(QLabel, 'label_3')  # Ensure the QLabel is named 'label_3' in the .ui file
+        self.showFullScreen()
         if self.message_label:
-            print(f"Setting message: {message}")  # Debug print statement
+            logging.info(f"Setting message: {message}")  # Debug logging statement
             self.message_label.setText(message)
         else:
-            print("QLabel 'label_3' not found in Message.ui")
+            logging.error("QLabel 'label_3' not found in Message.ui")
         self.parent_window = parent_window
         QTimer.singleShot(10000, self.close_message_window)  # Close the window after 10 seconds
-
+        
     def close_message_window(self):
-        print("Closing MessageWindow")  # Debug print statement
+        logging.info("Closing MessageWindow")  # Debug logging statement
         self.close()
         self.parent_window.show()
 
@@ -70,34 +77,53 @@ class RemainingWindow(QMainWindow):
         assert self.remaining_input is not None, "QLineEdit for remaining input not found!"
         self.remaining_input.returnPressed.connect(self.update_remaining)
 
+        # Connect number buttons to the handler
+        for i in range(2, 12):
+            button = self.findChild(QPushButton, f'pushButton_{i}')
+            assert button is not None, f"QPushButton_{i} not found!"
+            font = QFont("Segoe UI", 18, QFont.Weight.Bold)
+            button.setFont(font)
+            button.clicked.connect(lambda _, num=i-1: self.append_number(num))
+            
+        # Connect the enter button
+        self.pushButton_12 = self.findChild(QPushButton, 'pushButton_12')
+        assert self.pushButton_12 is not None, "QPushButton_12 not found!"
+        self.pushButton_12.clicked.connect(self.update_remaining)
+        font = QFont("Segoe UI", 18, QFont.Weight.Bold)
+        self.pushButton_12.setFont(font)
+
         # Find the QPushButton widget for returning to the main window
         self.pushButton = self.findChild(QPushButton, 'pushButton')
         assert self.pushButton is not None, "QPushButton not found!"
         self.pushButton.clicked.connect(self.return_to_main_window)
+        font = QFont("Segoe UI", 18, QFont.Weight.Bold)
+        self.pushButton.setFont(font)
+        self.showFullScreen()
+
+        # Find the QLabel widget for label_8
+        self.label_2 = self.findChild(QLabel, 'label_2')
+        if self.label_2 is None:
+            logging.error("QLabel label_2 not found!")
+        else:
+            logging.info("QLabel label_2 found!")
+            # Set the font for label_2
+            font = QFont("Segoe UI", 28, QFont.Weight.Bold)
+            self.label_2.setFont(font)
+
+        # Set up a QTimer to close the window after 30 seconds if no input is provided
+        self.timeout_timer = QTimer(self)
+        self.timeout_timer.setSingleShot(True)
+        self.timeout_timer.timeout.connect(self.timeout_close)
+        self.timeout_timer.start(30000)  # 30 seconds
+
+    def append_number(self, num):
+        current_text = self.remaining_input.text()
+        self.remaining_input.setText(current_text + str(num))
 
     def showEvent(self, event):
         super().showEvent(event)
         if self.remaining_input is not None:
             self.remaining_input.setFocus()
-            self.open_osk()
-
-    def open_osk(self):
-        try:
-            os.system('start osk')
-            #logging.info("On-screen keyboard opened")
-        except OSError as e:
-            logging.error(f"OS error: {e}")
-        except Exception as e:
-            logging.error(f"Unexpected error: {e}")
-
-    def close_osk(self):
-        try:
-            os.system('taskkill /IM osk.exe /F')
-            #logging.info("On-screen keyboard closed")
-        except OSError as e:
-            logging.error(f"OS error: {e}")
-        except Exception as e:
-            logging.error(f"Unexpected error: {e}")
 
     def update_remaining(self):
         if self.remaining_input is not None:
@@ -122,9 +148,9 @@ class RemainingWindow(QMainWindow):
 
                     '''
                     cursor.execute(create_table_query)
-                    print("Table created successfully.")
+                    logging.info("Table created successfully.")
                 else:
-                    print("Table already exists.")
+                    logging.error("Table already exists.")
 
                 # Commit the changes and close the connection
                 conn.commit()
@@ -145,11 +171,12 @@ class RemainingWindow(QMainWindow):
                 self.main_window.remaining_label.setText(f"{self.main_window.Remaining} km")
                 self.main_window.update_label_21_color()
                 #logging.info(f"Remaining updated to: {self.main_window.Remaining}")
-                self.close_osk()
                 self.close()
                 self.main_window.show()
 
                 subprocess.Popen(["powershell", "-NoExit", "-Command", "python Range_Estimation.py"])
+                subprocess.Popen(["powershell", "-NoExit", "-Command", "python separate_SQL_range_estimator_no_ML.py"])
+                subprocess.Popen(["powershell", "-NoExit", "-Command", "python separate_SQL_simplified_ML_range_estimator.py"])
 
             except ValueError:
                 logging.error("Invalid input for Remaining")
@@ -179,18 +206,197 @@ class RemainingWindow(QMainWindow):
                     conn.close()
 
                     # Return nan if not found
-                    return result[0] if result and result[0] is not None else np.nan
+                    return result[0] if result and result[0] is not None else 0
 
                 except sqlite3.Error as e:
-                    print(f"Database error: {e}")
+                    logging.error(f"Database error: {e}")
                     return np.nan  
                 except Exception as e:
-                    print(f"Error: {e}")
+                    logging.error(f"Error: {e}")
                     return np.nan
 
     def return_to_main_window(self):
         self.close()
         self.main_window.show()
+
+    def timeout_close(self):
+        logging.info("Timeout reached, closing RemainingWindow and setting remaining to 50")
+        self.main_window.Remaining = 63
+        self.main_window.remaining_label.setText(f"{self.main_window.Remaining} km")
+        self.main_window.update_label_21_color()
+        self.close()
+        self.main_window.show()
+
+
+class PlotSelectionWindow(QMainWindow):
+    def __init__(self, battery_time_plot_window, solar_power_plot_window, motor_power_plot_window, auxiliary_power_plot_window, second_window):
+        super().__init__()
+        try:
+            uic.loadUi("Plot_Selection.ui", self)  # Load the Plot_Selection UI file
+            self.showFullScreen()
+        except Exception as e:
+            logging.error(f"Failed to load Plot_Selection.ui: {e}")
+            raise
+        self.battery_time_plot_window = battery_time_plot_window
+        self.solar_power_plot_window = solar_power_plot_window
+        self.motor_power_plot_window = motor_power_plot_window
+        self.auxiliary_power_plot_window = auxiliary_power_plot_window
+        self.second_window = second_window  # Store the reference to the SecondWindow
+
+        # Find the QPushButton widget for opening the battery time plot window
+        self.pushButton = self.findChild(QPushButton, 'pushButton')
+        assert self.pushButton is not None, "QPushButton not found!"
+        self.pushButton.clicked.connect(self.open_battery_time_plot)
+        font = QFont("Segoe UI", 22, QFont.Weight.Bold)
+        self.pushButton.setFont(font)
+
+        # Find the QPushButton widget for opening the solar power plot window
+        self.pushButton_2 = self.findChild(QPushButton, 'pushButton_2')
+        assert self.pushButton_2 is not None, "QPushButton_2 not found!"
+        self.pushButton_2.clicked.connect(self.open_solar_power_plot)
+        font = QFont("Segoe UI", 22, QFont.Weight.Bold)
+        self.pushButton_2.setFont(font)
+
+        # Find the QPushButton widget for opening the motor power plot window
+        self.pushButton_3 = self.findChild(QPushButton, 'pushButton_3')
+        assert self.pushButton_3 is not None, "QPushButton_3 not found!"
+        self.pushButton_3.clicked.connect(self.open_motor_power_plot)
+        font = QFont("Segoe UI", 22, QFont.Weight.Bold)
+        self.pushButton_3.setFont(font)
+
+        # Find the QPushButton widget for opening the auxiliary power plot window
+        self.pushButton_4 = self.findChild(QPushButton, 'pushButton_4')
+        assert self.pushButton_4 is not None, "QPushButton_4 not found!"
+        self.pushButton_4.clicked.connect(self.open_auxiliary_power_plot)
+        font = QFont("Segoe UI", 22, QFont.Weight.Bold)
+        self.pushButton_4.setFont(font)
+
+         # Find the QPushButton widget for returning to the second window
+        self.pushButton_5 = self.findChild(QPushButton, 'pushButton_5')
+        assert self.pushButton_5 is not None, "QPushButton_5 not found!"
+        self.pushButton_5.clicked.connect(self.open_second_window)
+        font = QFont("Segoe UI", 28, QFont.Weight.Bold)
+        self.pushButton_5.setFont(font)
+
+        # Find the QLabel widget for label_4
+        self.label_4 = self.findChild(QLabel, 'label_4')
+        if self.label_4 is None:
+            logging.error("QLabel label_4 not found!")
+        else:
+            logging.info("QLabel label_4 found!")
+            # Set the font for label_4
+            font = QFont("Segoe UI", 28, QFont.Weight.Bold)
+            self.label_4.setFont(font)
+
+    def open_battery_time_plot(self):
+        self.battery_time_plot_window.show_window()
+
+    def open_solar_power_plot(self):
+        self.solar_power_plot_window.show_window()
+
+    def open_motor_power_plot(self):
+        self.motor_power_plot_window.show_window()
+
+    def open_auxiliary_power_plot(self):
+        self.auxiliary_power_plot_window.show_window()
+
+    def open_second_window(self):
+        self.hide()
+        self.second_window.show()
+
+class SolarPowerPlotWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        try:
+            uic.loadUi("SolarPowerPlot.ui", self)  # Load the SolarPowerPlot UI file
+        except Exception as e:
+            logging.error(f"Failed to load SolarPowerPlot.ui: {e}")
+            raise
+        self.plot_widget = self.findChild(QWidget, 'widget')
+        self.plot_layout = QVBoxLayout(self.plot_widget)
+        self.plot = pg.PlotWidget()
+        self.plot_layout.addWidget(self.plot)
+        self.plot.setLabel('left', 'Value')
+        self.plot.setLabel('bottom', 'Time (seconds)')
+        self.plot.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.plot_widget.setLayout(self.plot_layout)
+        self.data = deque(maxlen=200)
+        self.start_time = datetime.now()  # Store the start time
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_plot)
+        self.timer.start(1000)  # Update every second
+
+    def show_window(self):
+        self.show()
+
+    def update_plot(self):
+        try:
+            logging.debug("update_plot called")
+            self.plot.clear()
+            if self.data:
+                elapsed_times = [(x[4] - self.start_time).total_seconds() for x in self.data]
+                solar_powers = [x[2] for x in self.data]
+                logging.debug(f"Elapsed times: {elapsed_times}")
+                logging.debug(f"Solar Powers: {solar_powers}")
+
+                # Plot data
+                self.plot.plot(elapsed_times, solar_powers, pen=pg.mkPen(color='y', width=2), name="Solar Power")
+
+                # Add text label in the top corner with the latest solar power value
+                solar_power_text = pg.TextItem(text=f"Solar Power: {solar_powers[-1]:.2f}", color='y', anchor=(1, 1))
+                solar_power_text.setPos(elapsed_times[-1], max(solar_powers))
+                self.plot.addItem(solar_power_text)
+
+                self.plot.setYRange(0, max(solar_powers) * 1.1)  # Set y-axis range slightly above the max solar power value
+        except Exception as e:
+            logging.error(f"Error updating plot: {e}")
+
+class MotorPowerPlotWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        try:
+            uic.loadUi("MotorPowerPlot.ui", self)  # Load the MotorPowerPlot UI file
+        except Exception as e:
+            logging.error(f"Failed to load MotorPowerPlot.ui: {e}")
+            raise
+        self.plot_widget = self.findChild(QWidget, 'widget')
+        self.plot_layout = QVBoxLayout(self.plot_widget)
+        self.plot = pg.PlotWidget()
+        self.plot_layout.addWidget(self.plot)
+        self.plot.setLabel('left', 'Value')
+        self.plot.setLabel('bottom', 'Time (seconds)')
+        self.plot.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.plot_widget.setLayout(self.plot_layout)
+        self.data = deque(maxlen=200)
+        self.start_time = datetime.now()  # Store the start time
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_plot)
+        self.timer.start(1000)  # Update every second
+
+    def show_window(self):
+        self.show()
+
+    def update_plot(self):
+        try:
+            logging.debug("update_plot called")
+            self.plot.clear()
+            if self.data:
+                elapsed_times = [(x[4] - self.start_time).total_seconds() for x in self.data]
+                motor_powers = [x[1] for x in self.data]
+                logging.debug(f"Elapsed times: {elapsed_times}")
+                logging.debug(f"Motor Powers: {motor_powers}")
+
+                # Plot data
+                self.plot.plot(elapsed_times, motor_powers, pen=pg.mkPen(color='b', width=2), name="Motor Power")
+
+                # Add text label in the top corner with the latest motor power value
+                motor_power_text = pg.TextItem(text=f"Motor Power: {motor_powers[-1]:.2f}", color='b', anchor=(1, 1))
+                motor_power_text.setPos(elapsed_times[-1], max(motor_powers))
+                self.plot.addItem(motor_power_text)
+
+                self.plot.setYRange(0, max(motor_powers) * 1.1)  # Set y-axis range slightly above the max motor power value
+        except Exception as e:
+            logging.error(f"Error updating plot: {e}")
 
 # Commit restart
 class BatteryTimePlotWindow(QMainWindow):
@@ -205,7 +411,7 @@ class BatteryTimePlotWindow(QMainWindow):
         self.plot_layout = QVBoxLayout(self.plot_widget)
         self.plot = pg.PlotWidget()
         self.plot_layout.addWidget(self.plot)
-        self.plot.setLabel('left', 'Battery Charge')
+        self.plot.setLabel('left', 'Value')
         self.plot.setLabel('bottom', 'Time (seconds)')
         self.plot.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.plot_widget.setLayout(self.plot_layout)
@@ -215,18 +421,75 @@ class BatteryTimePlotWindow(QMainWindow):
         self.timer.timeout.connect(self.update_plot)
         self.timer.start(1000)  # Update every second
 
+    def show_window(self):
+        self.show()
+        
     def update_plot(self):
         try:
             logging.debug("update_plot called")
             self.plot.clear()
             if self.data:
-                logging.debug(f"Data in deque: {self.data}")
-                elapsed_times = [(x[1] - self.start_time).total_seconds() for x in self.data]
+                elapsed_times = [(x[4] - self.start_time).total_seconds() for x in self.data]
                 charges = [x[0] for x in self.data]
                 logging.debug(f"Elapsed times: {elapsed_times}")
                 logging.debug(f"Charges: {charges}")
-                self.plot.plot(elapsed_times, charges, pen=pg.mkPen(color='w', width=2))
-                self.plot.plot(elapsed_times, charges*0.5, pen=pg.mkPen(color='b', width=2))
+
+                # Plot data
+                self.plot.plot(elapsed_times, charges, pen=pg.mkPen(color='r', width=2), name="Battery Charge")
+
+               # Add text label in the top corner with the latest battery charge value
+                soc_text = pg.TextItem(text=f"SOC: {charges[-1]:.2f}", color='r', anchor=(1, 1))
+                soc_text.setPos(elapsed_times[-1], max(charges))
+                self.plot.addItem(soc_text)
+
+                self.plot.setYRange(0, max(charges) * 1.1)  # Set y-axis range slightly above the max charge value
+        except Exception as e:
+            logging.error(f"Error updating plot: {e}")
+
+class AuxiliaryPowerPlotWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        try:
+            uic.loadUi("AuxiliaryPowerPlot.ui", self)  # Load the AuxiliaryPowerPlot UI file
+        except Exception as e:
+            logging.error(f"Failed to load AuxiliaryPowerPlot.ui: {e}")
+            raise
+        self.plot_widget = self.findChild(QWidget, 'widget')
+        self.plot_layout = QVBoxLayout(self.plot_widget)
+        self.plot = pg.PlotWidget()
+        self.plot_layout.addWidget(self.plot)
+        self.plot.setLabel('left', 'Value')
+        self.plot.setLabel('bottom', 'Time (seconds)')
+        self.plot.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.plot_widget.setLayout(self.plot_layout)
+        self.data = deque(maxlen=200)
+        self.start_time = datetime.now()  # Store the start time
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_plot)
+        self.timer.start(1000)  # Update every second
+
+    def show_window(self):
+        self.show()
+
+    def update_plot(self):
+        try:
+            logging.debug("update_plot called")
+            self.plot.clear()
+            if self.data:
+                elapsed_times = [(x[4] - self.start_time).total_seconds() for x in self.data]
+                auxiliary_powers = [x[3] for x in self.data]
+                logging.debug(f"Elapsed times: {elapsed_times}")
+                logging.debug(f"Auxiliary Powers: {auxiliary_powers}")
+
+                # Plot data
+                self.plot.plot(elapsed_times, auxiliary_powers, pen=pg.mkPen(color='g', width=2), name="Auxiliary Power")
+
+                # Add text label in the top corner with the latest auxiliary power value
+                auxiliary_power_text = pg.TextItem(text=f"Auxiliary Power: {auxiliary_powers[-1]:.2f}", color='g', anchor=(1, 1))
+                auxiliary_power_text.setPos(elapsed_times[-1], max(auxiliary_powers))
+                self.plot.addItem(auxiliary_power_text)
+
+                self.plot.setYRange(0, max(auxiliary_powers) * 1.1)  # Set y-axis range slightly above the max auxiliary power value
         except Exception as e:
             logging.error(f"Error updating plot: {e}")
 
@@ -235,6 +498,7 @@ class MapWindow(QMainWindow):
         super().__init__()
         try:
             uic.loadUi("Map.ui", self)  # Load the map UI file
+            self.showFullScreen()
         except Exception as e:
             logging.error(f"Failed to load Map.ui: {e}")
             raise
@@ -244,6 +508,7 @@ class MapWindow(QMainWindow):
         self.second_window = second_window
         self.webView = self.findChild(QWebEngineView, 'webView')
         self.webView.setUrl(QUrl("http://localhost:8000/map.html"))
+        self.webView.loadFinished.connect(self.on_load_finished)
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_location)
         self.timer.start(2000)  # Update every 2 seconds
@@ -253,11 +518,29 @@ class MapWindow(QMainWindow):
         self.pushButton = self.findChild(QPushButton, 'pushButton')
         assert self.pushButton is not None, "QPushButton not found!"
         self.pushButton.clicked.connect(self.return_to_main_window)
+        font = QFont("Segoe UI", 18, QFont.Weight.Bold)
+        self.pushButton.setFont(font)
 
         # Find the QPushButton widget for opening the diagnostics panel
         self.pushButton_2 = self.findChild(QPushButton, 'pushButton_2')
         assert self.pushButton_2 is not None, "QPushButton_2 not found!"
         self.pushButton_2.clicked.connect(self.open_diagnostics_panel)
+        font = QFont("Segoe UI", 18, QFont.Weight.Bold)
+        self.pushButton_2.setFont(font)
+
+        # Find the QLabel widget for label_3
+        self.label_3 = self.findChild(QLabel, 'label_3')
+        if self.label_3 is None:
+            logging.error("QLabel label_3 not found!")
+        else:
+            logging.info("QLabel label_3 found!")
+            # Set the font for label_3
+            font = QFont("Segoe UI", 28, QFont.Weight.Bold)
+            self.label_3.setFont(font)
+
+    def on_load_finished(self, success):
+        if not success:
+            logging.error("Failed to load map.html. Please ensure the local server is running and serving the file.")
 
     def update_location(self):
         try:
@@ -281,10 +564,13 @@ class MapWindow(QMainWindow):
             logging.error(f"Error opening diagnostics panel: {e}")
 
 class SecondWindow(QMainWindow):
-    def __init__(self, main_window, battery_charge, battery_error, battery_status, motor_current, motor_voltage, temperature, auxilliary_voltage, solar_current, solar_voltage, solar_power, latitude, longitude, speed, acceleration, range_, remaining, motor_power, auxilliary_power, auxilliary_current, range_slow, range_fast, battery_time_plot_window):
+    def __init__(self, main_window, battery_charge, battery_error, battery_status, motor_current, motor_voltage, temperature, auxilliary_voltage, solar_current, solar_voltage, solar_power, latitude, longitude, speed, acceleration, range_, remaining, motor_power, auxilliary_power, auxilliary_current, range_slow, range_fast, battery_time_plot_window, solar_power_plot_window, motor_power_plot_window, auxiliary_power_plot_window):
         super().__init__()
         self.main_window = main_window
         self.battery_time_plot_window = battery_time_plot_window  # Store the passed instance
+        self.solar_power_plot_window = solar_power_plot_window  # Store the passed instance
+        self.motor_power_plot_window = motor_power_plot_window  # Store the passed instance
+        self.auxiliary_power_plot_window = auxiliary_power_plot_window # Store the passed instance
         try:
             uic.loadUi("Diagnostics Panel.ui", self)  # Load the second UI file
             #logging.info("Second window initialized")
@@ -292,6 +578,7 @@ class SecondWindow(QMainWindow):
             logging.error(f"Failed to load Diagnostics Panel.ui: {e}")
 
         # Find and set the QTextEdit widgets
+        self.showFullScreen()
         self.set_text_edit('textEdit', battery_charge)
         self.set_text_edit('textEdit_3', battery_error)
         self.set_text_edit('textEdit_4', motor_current)
@@ -320,16 +607,87 @@ class SecondWindow(QMainWindow):
         self.pushButton_5 = self.findChild(QPushButton, 'pushButton_5')
         assert self.pushButton_5 is not None, "QPushButton_5 not found!"
         self.pushButton_5.clicked.connect(self.return_to_main_window)
+        font = QFont("Segoe UI", 18, QFont.Weight.Bold)
+        self.pushButton_5.setFont(font)
 
         # Find the QPushButton widget for opening the map window
         self.pushButton_4 = self.findChild(QPushButton, 'pushButton_4')
         assert self.pushButton_4 is not None, "QPushButton_4 not found!"
         self.pushButton_4.clicked.connect(self.open_map_window)
+        font = QFont("Segoe UI", 18, QFont.Weight.Bold)
+        self.pushButton_4.setFont(font)
 
         # Find the QPushButton widget for opening the battery time plot window
         self.pushButton_6 = self.findChild(QPushButton, 'pushButton_6')
         assert self.pushButton_6 is not None, "QPushButton_6 not found!"
-        self.pushButton_6.clicked.connect(self.open_battery_time_plot)
+        self.pushButton_6.clicked.connect(self.open_plot_selection_window)
+        font = QFont("Segoe UI", 18, QFont.Weight.Bold)
+        self.pushButton_6.setFont(font)
+
+        # Find the QLabel widget for label_4
+        self.label_4 = self.findChild(QLabel, 'label_4')
+        if self.label_4 is None:
+            logging.error("QLabel label_4 not found!")
+        else:
+            logging.info("QLabel label_4 found!")
+            # Set the font for label_4
+            font = QFont("Segoe UI", 14, QFont.Weight.Bold)
+            self.label_4.setFont(font)
+
+        # Find the QLabel widget for label_8
+        self.label_8 = self.findChild(QLabel, 'label_8')
+        if self.label_8 is None:
+            logging.error("QLabel label_8 not found!")
+        else:
+            logging.info("QLabel label_8 found!")
+            # Set the font for label_8
+            font = QFont("Segoe UI", 14, QFont.Weight.Bold)
+            self.label_8.setFont(font)
+
+        # Find the QLabel widget for label_23
+        self.label_23 = self.findChild(QLabel, 'label_23')
+        if self.label_23 is None:
+            logging.error("QLabel label_23 not found!")
+        else:
+            logging.info("QLabel label_23 found!")
+            # Set the font for label_23
+            font = QFont("Segoe UI", 14, QFont.Weight.Bold)
+            self.label_23.setFont(font)
+
+        # Find the QLabel widget for label_19
+        self.label_19 = self.findChild(QLabel, 'label_19')
+        if self.label_19 is None:
+            logging.error("QLabel label_19 not found!")
+        else:
+            logging.info("QLabel label_19 found!")
+            # Set the font for label_19
+            font = QFont("Segoe UI", 14, QFont.Weight.Bold)
+            self.label_19.setFont(font)
+
+        # Find the QLabel widget for label_33
+        self.label_33 = self.findChild(QLabel, 'label_33')
+        if self.label_33 is None:
+            logging.error("QLabel label_33 not found!")
+        else:
+            logging.info("QLabel label_33 found!")
+            # Set the font for label_33
+            font = QFont("Segoe UI", 14, QFont.Weight.Bold)
+            self.label_33.setFont(font)
+
+        # Find the QLabel widget for label_2
+        self.label_2 = self.findChild(QLabel, 'label_2')
+        if self.label_2 is None:
+            logging.error("QLabel label_2 not found!")
+        else:
+            logging.info("QLabel label_2 found!")
+            # Set the font for label_2
+            font = QFont("Segoe UI", 28, QFont.Weight.Bold)
+            self.label_2.setFont(font)
+
+    def open_plot_selection_window(self):
+        self.open_plot_selection_window = PlotSelectionWindow(self.battery_time_plot_window, self.solar_power_plot_window, self.motor_power_plot_window, self.auxiliary_power_plot_window, self)
+        self.open_plot_selection_window.show()
+        self.hide()
 
     def update_values_from_db(self):
         try:
@@ -427,7 +785,7 @@ class SecondWindow(QMainWindow):
             cursor.execute(query, (sensor_id,))
             result = cursor.fetchone()
             conn.close()
-            return result[0] if result and result[0] is not None else np.nan
+            return result[0] if result and result[0] is not None else 0
         except sqlite3.Error as e:
             logging.error(f"Database error: {e}")
             return np.nan  
@@ -529,10 +887,11 @@ class MyApp(QMainWindow):
         self.lock = threading.Lock()
         try:
             uic.loadUi("Pilot_UI.ui", self)  # Load the UI file
+            self.showFullScreen()
         except Exception as e:
             logging.error(f"Failed to load Pilot_UI.ui: {e}")
             raise
-
+            
         # Set up a QTimer to update values from the database periodically
         self.update_timer = QTimer(self)
         self.update_timer.timeout.connect(self.update_values_from_db)
@@ -550,9 +909,27 @@ class MyApp(QMainWindow):
         assert self.dial is not None, "QDial not found!"
         self.dial.setMaximum(20)  # Set the maximum value of the dial to 20
 
+        #Customize the QDial using stylesheets
+        self.dial.setStyleSheet("""
+            QDial {
+                background-color: #F81E01;  /* Background color */
+                border: 2px solid #D4D4D4;  /* Border color */
+                border-radius: 10px;  /* Border radius */
+                width: 100px;  /* Width of the dial */
+                height: 100px;  /* Height of the dial */
+            }
+            QDial::handle {
+            background-color: #F81E01;  /* Handle color */
+                border: 1px solid #1E1E1E;  /* Handle border color */
+                border-radius: 5px;  /* Handle border radius */
+                width: 10px;  /* Width of the handle */
+                height: 10px;  /* Height of the handle */
+            }
+        """)
+
         # Initialize the Speed variable
         self.Speed = round(self.SQLread(10), 2)
-        print(self.Speed)
+        logging.info(self.Speed)
 
         # Set the initial value of the dial to the Speed value
         self.dial.setValue(int(round(self.Speed)))
@@ -580,9 +957,9 @@ class MyApp(QMainWindow):
          # Find the QPushButton widget for opening the Remaining window
         self.pushButton_2 = self.findChild(QPushButton, 'pushButton_2')
         if self.pushButton_2 is None:
-            print("QPushButton_2 not found!")
+            logging.error("QPushButton_2 not found!")
         else:
-            print("QPushButton_2 found!")
+            logging.info("QPushButton_2 found!")
             self.pushButton_2.clicked.connect(self.open_remaining_window)
 
         self.progressBar.setMaximum(100)  # Set the maximum value of the progress bar to 100
@@ -621,6 +998,9 @@ class MyApp(QMainWindow):
         self.remaining_label.setText(f"{self.Remaining} km")
 
         self.battery_time_plot_window = BatteryTimePlotWindow()
+        self.solar_power_plot_window = SolarPowerPlotWindow()
+        self.motor_power_plot_window = MotorPowerPlotWindow()
+        self.auxiliary_power_plot_window = AuxiliaryPowerPlotWindow()
 
         # Update the label to show the initial Remaining value
         self.remaining_label.setText(f"{self.Remaining} km")
@@ -694,27 +1074,59 @@ class MyApp(QMainWindow):
         sqlquery = '''SELECT optimalSpeed FROM range_estimates ORDER BY datetime(timestamp) DESC LIMIT 1'''
         cursor.execute(sqlquery)
         self.OptimalSpeed = round((cursor.fetchone()[0]), 2)
-        print(self.OptimalSpeed)
+        logging.info(self.OptimalSpeed)
         conn.close()
 
         # Find the QLabel widget for label_21
         self.label_21 = self.findChild(QLabel, 'label_21')  
         if self.label_21 is None:
-            print("QLabel label_21 not found!")
+            logging.error("QLabel label_21 not found!")
         else:
-            print("QLabel label_21 found!")
+            logging.info("QLabel label_21 found!")
             # Update the color of label_21 based on the comparison between range_ and remaining
             self.update_label_21_color()
+
+        # Find the QLabel widget for label_16
+        self.label_16 = self.findChild(QLabel, 'label_16')
+        if self.label_16 is None:
+            logging.error("QLabel label_16 not found!")
+        else:
+            logging.info("QLabel label_16 found!")
+            # Set the font for label_16
+            font = QFont("Segoe UI", 22, QFont.Weight.Bold)
+            self.label_16.setFont(font)
+
+        # Find the QLabel widget for label_17
+        self.label_17 = self.findChild(QLabel, 'label_17')
+        if self.label_17 is None:
+            logging.error("QLabel label_17 not found!")
+        else:
+            logging.info("QLabel label_17 found!")
+            # Set the font for label_17
+            font = QFont("Segoe UI", 22, QFont.Weight.Bold)
+            self.label_17.setFont(font)
+
+        # Find the QLabel widget for label_16
+        self.label_18 = self.findChild(QLabel, 'label_18')
+        if self.label_18 is None:
+            logging.error("QLabel label_18 not found!")
+        else:
+            logging.info("QLabel label_18 found!")
+            # Set the font for label_18
+            font = QFont("Segoe UI", 22, QFont.Weight.Bold)
+            self.label_18.setFont(font)
 
         # Find the QPushButton widget
         self.pushButton = self.findChild(QPushButton, 'pushButton')  
         assert self.pushButton is not None, "QPushButton not found!"
         self.pushButton.clicked.connect(self.open_second_window)
+        font = QFont("Segoe UI", 14, QFont.Weight.Bold)
+        self.pushButton.setFont(font)
         #logging.info("Connected clicked signal to open_second_window slot")
 
         # Connect the button's clicked signal to a slot
         self.pushButton.clicked.connect(self.open_second_window)
-        print("Connected clicked signal to open_second_window slot")
+        logging.info("Connected clicked signal to open_second_window slot")
 
         # Set up a QTimer to send latitude and longitude to OpenCPN periodically
         self.timer = QTimer(self)
@@ -762,10 +1174,10 @@ class MyApp(QMainWindow):
             #logging.info("Second window values updated from main window")
 
     def update_values_from_db(self):
-        print("Updating values from database")
+        logging.info("Updating values from database")
         try:
             self.Speed = round(self.SQLread(10), 2)
-            self.label.setText(f"{self.Speed} km/h")
+            self.label.setText(f"{self.Speed}")
             self.dial.setValue(int(round(self.Speed)))
 
             self.BatteryCharge = round((self.SQLread(1) * 100), 2)
@@ -817,7 +1229,7 @@ class MyApp(QMainWindow):
             sqlquery = '''SELECT optimalSpeed FROM range_estimates ORDER BY datetime(timestamp) DESC LIMIT 1'''
             cursor.execute(sqlquery)
             self.OptimalSpeed = round((cursor.fetchone()[0]), 2)
-            print(self.OptimalSpeed)
+            logging.info(self.OptimalSpeed)
             conn.close()
 
             self.MotorCurrent = round(self.SQLread(18), 2)
@@ -835,7 +1247,7 @@ class MyApp(QMainWindow):
             self.AuxilliaryCurrent = round(self.SQLread(24), 2)
 
             self.update_label_21_color()
-            #logging.info("Values updated from database")
+            logging.info("Values updated from database")
         except Exception as e:
                 logging.error(f"Error updating values from database: {e}")
 
@@ -847,7 +1259,7 @@ class MyApp(QMainWindow):
         try:
             self.Speed = value
             #logging.info(f"Updating label to: {self.Speed} km/h")
-            self.label.setText(f"{self.Speed} km/h")
+            self.label.setText(f"{self.Speed}")
             #logging.info(f"Speed is now: {self.Speed}")
         except Exception as e:
             logging.error(f"Error updating speed: {e}")
@@ -888,10 +1300,10 @@ class MyApp(QMainWindow):
                     return result[0] if result and result[0] is not None else 'No data'
 
                 except sqlite3.Error as e:
-                    print(f"Database error: {e}")
+                    logging.error(f"Database error: {e}")
                     return 'No data' 
                 except Exception as e:
-                    print(f"Error: {e}")
+                    logging.error(f"Error: {e}")
                     return 'No data'
         
     def SQLread(self, sensor_id, db_path="SoleX_Database.db", table_name="sensor_data"):
@@ -917,13 +1329,13 @@ class MyApp(QMainWindow):
             conn.close()
 
             # Return nan if not found
-            return result[0] if result and result[0] is not None else np.nan
+            return result[0] if result and result[0] is not None else 0
 
         except sqlite3.Error as e:
-            print(f"Database error: {e}")
+            logging.error(f"Database error: {e}")
             return np.nan  
         except Exception as e:
-            print(f"Error: {e}")
+            logging.error(f"Error: {e}")
             return np.nan
 
     def open_remaining_window(self):
@@ -953,7 +1365,7 @@ class MyApp(QMainWindow):
         auxilliary_current = self.AuxilliaryCurrent # Pass the Auxilliary Current value
         range_slow = self.RangeSlow # Pass the Range Slow value
         range_fast = self.RangeFast # Pass the Range Fast value
-        self.second_window = SecondWindow(self, battery_charge, battery_error, battery_status, motor_current, motor_voltage, temperature, auxilliary_voltage, solar_current, solar_voltage, solar_power, latitude, longitude, speed, acceleration, range_, remaining, motor_power, auxilliary_power, auxilliary_current, range_slow, range_fast, self.battery_time_plot_window)
+        self.second_window = SecondWindow(self, battery_charge, battery_error, battery_status, motor_current, motor_voltage, temperature, auxilliary_voltage, solar_current, solar_voltage, solar_power, latitude, longitude, speed, acceleration, range_, remaining, motor_power, auxilliary_power, auxilliary_current, range_slow, range_fast, self.battery_time_plot_window, self.solar_power_plot_window, self.motor_power_plot_window, self.auxiliary_power_plot_window)
         self.second_window.show()
         self.hide()
         self.update_label_21_color()  # Update the color when opening the second window
@@ -1087,10 +1499,13 @@ class MyApp(QMainWindow):
             # Update the battery time plot data
             try:
                 #logging.info(f"Appending data to plot: {self.BatteryCharge}, {datetime.now()}")
-                self.battery_time_plot_window.data.append((self.BatteryCharge, datetime.now()))
+                self.battery_time_plot_window.data.append((self.BatteryCharge, self.MotorPower, self.SolarPower, self.AuxilliaryPower, datetime.now()))
+                self.solar_power_plot_window.data.append((self.BatteryCharge, self.MotorPower, self.SolarPower, self.AuxilliaryPower, datetime.now()))
+                self.motor_power_plot_window.data.append((self.BatteryCharge, self.MotorPower, self.SolarPower, self.AuxilliaryPower, datetime.now()))
+                self.auxiliary_power_plot_window.data.append((self.BatteryCharge, self.MotorPower, self.SolarPower, self.AuxilliaryPower, datetime.now()))
                 #logging.info(f"Data appended to plot: {self.battery_time_plot_window.data}")
             except Exception as e:
-                logging.error(f"Error updating battery time plot data: {e}")
+                logging.error(f"Error updating plot data: {e}")
 
     def format_nmea_latitude(self, latitude):
         try:
@@ -1183,9 +1598,9 @@ if __name__ == "__main__":
         )
         '''
         cursor.execute(create_table_query)
-        print("Table created successfully.")
+        logging.info("Table created successfully.")
     else:
-        print("Table already exists.")
+        logging.error("Table already exists.")
     
     # Commit the changes and close the connection
     conn.commit()
@@ -1223,9 +1638,9 @@ if __name__ == "__main__":
 
         '''
         cursor.execute(create_table_query)
-        print("Table created successfully.")
+        logging.info("Table created successfully.")
     else:
-        print("Table already exists.")
+        logging.error("Table already exists.")
 
     # Commit the changes and close the connection
     conn.commit()
